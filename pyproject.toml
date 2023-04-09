@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "htap"
+version = "0.1.0"
+description = "MEng Project: Federated Query Routing"
+authors = ["dfangs <dfanggohans@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "htap", from = "src" }]       # Needed for src-based layout
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
