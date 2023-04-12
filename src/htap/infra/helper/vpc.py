@@ -1,0 +1,149 @@
+import ipaddress
+from abc import ABC
+from enum import Enum, unique
+from typing import Any, Self
+
+import pulumi_aws as aws
+from attrs import define
+
+from htap.infra.utils import get_aws_region
+from htap.utils.sentinel import Sentinel
+
+
+@unique
+class GatewayEndpointService(Enum):
+    """
+    Represents the various types of VPC Gateway Endpoints.
+
+    Note that this is a strict subset of VPC Endpoints in general.
+    """
+
+    S3 = "s3"
+    DYNAMODB = "dynamodb"
+
+    @property
+    def qualified_name(self) -> str:
+        # `name` cannot be use since it is a default attribute name for Enum
+        return f"com.amazonaws.{get_aws_region()}.{self.value}"
+
+
+# pylint: disable-next=invalid-name
+class SELF_TARGET(Sentinel):
+    """Sentinel value representing a self-target for Security Group Rules."""
+
+
+# Type alias
+SecurityGroupRuleTarget = (
+    ipaddress.IPv4Network | aws.ec2.SecurityGroup | type[SELF_TARGET]
+)
+
+
+@define(frozen=True)
+class _SecurityGroupRule(ABC):
+    """
+    Abstract base class for Security Group Rules.
+
+    This class serves to contain the shared fields and factory methods
+    for both Ingress Rule and Egress Rule.
+    """
+
+    protocol: aws.ec2.ProtocolType
+    port_range: tuple[int, int]
+    target: SecurityGroupRuleTarget
+    description: str | None = None
+
+    def get_pulumi_args(self) -> dict[str, Any]:
+        """
+        Returns the relevant keyword arguments needed when constructing
+        an `aws.ec2.SecurityGroupRule` Pulumi resource.
+        """
+        match self.target:
+            case ipaddress.IPv4Network():
+                return {"cidr_blocks": [str(self.target)]}
+            case aws.ec2.SecurityGroup():
+                return {"source_security_group_id": self.target.id}
+            case _ if self.target is SELF_TARGET:
+                return {"self": True}
+            case _:
+                # Cannot use `assert_never` here since the case for `SELF_TARGET`
+                # doesn't narrow its type, so `_` is not guaranteed to be `Never`
+                raise ValueError("Should not reach here")
+
+    @classmethod
+    def for_all_traffic(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        # Setting `protocol=ALL` will ignore the port range
+        return cls(aws.ec2.ProtocolType.ALL, (-1, -1), target, description)
+
+    @classmethod
+    def for_all_tcp(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (0, 65535), target, description)
+
+    @classmethod
+    def for_all_udp(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.UDP, (0, 65535), target, description)
+
+    @classmethod
+    def for_all_icmp(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.ICMP, (-1, -1), target, description)
+
+    @classmethod
+    def for_ssh(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (22, 22), target, description)
+
+    @classmethod
+    def for_http(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (80, 80), target, description)
+
+    @classmethod
+    def for_https(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (443, 443), target, description)
+
+    @classmethod
+    def for_postgresql(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (5432, 5432), target, description)
+
+    @classmethod
+    def for_redshift(
+        cls, target: SecurityGroupRuleTarget, description: str | None = None
+    ) -> Self:
+        return cls(aws.ec2.ProtocolType.TCP, (5439, 5439), target, description)
+
+
+@define(frozen=True)
+class SecurityGroupIngressRule(_SecurityGroupRule):
+    def __init__(
+        self,
+        protocol: aws.ec2.ProtocolType,
+        port_range: tuple[int, int],
+        source: SecurityGroupRuleTarget,
+        description: str | None = None,
+    ) -> None:
+        super().__init__(protocol, port_range, source, description)
+
+
+@define(frozen=True)
+class SecurityGroupEgressRule(_SecurityGroupRule):
+    def __init__(
+        self,
+        protocol: aws.ec2.ProtocolType,
+        port_range: tuple[int, int],
+        destination: SecurityGroupRuleTarget,
+        description: str | None = None,
+    ) -> None:
+        super().__init__(protocol, port_range, destination, description)
