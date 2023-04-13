@@ -25,7 +25,7 @@ def test_security_group_ingress_rule() -> None:
     )
 
     assert ingress_rule == expected
-    assert ingress_rule.get_pulumi_args() == {"cidr_blocks": ["10.0.0.0/16"]}
+    assert ingress_rule.get_pulumi_target_arg() == {"cidr_blocks": ["10.0.0.0/16"]}
 
 
 def test_security_group_egress_rule(mocker: MockerFixture) -> None:
@@ -41,7 +41,9 @@ def test_security_group_egress_rule(mocker: MockerFixture) -> None:
     assert egress_rule.protocol == ProtocolType.ALL
     assert egress_rule.target == mocked_sg
     assert egress_rule.description == description
-    assert egress_rule.get_pulumi_args() == {"source_security_group_id": "sg-1234"}
+    assert egress_rule.get_pulumi_target_arg() == {
+        "source_security_group_id": "sg-1234"
+    }
 
 
 def test_security_group_rule_self_target() -> None:
@@ -49,4 +51,4 @@ def test_security_group_rule_self_target() -> None:
         target=SELF_TARGET, description="Self target rule"
     )
 
-    assert rule.get_pulumi_args() == {"self": True}
+    assert rule.get_pulumi_target_arg() == {"self": True}

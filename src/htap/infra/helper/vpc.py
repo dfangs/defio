@@ -52,7 +52,7 @@ class _SecurityGroupRule(ABC):
     target: SecurityGroupRuleTarget
     description: str | None = None
 
-    def get_pulumi_args(self) -> dict[str, Any]:
+    def get_pulumi_target_arg(self) -> dict[str, Any]:
         """
         Returns the relevant keyword arguments needed when constructing
         an `aws.ec2.SecurityGroupRule` Pulumi resource.
