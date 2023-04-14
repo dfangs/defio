@@ -142,7 +142,7 @@ class InstanceProfile(pulumi.ComponentResource, ComponentMixin):
                 Statement=[
                     Statement(
                         Effect=StatementEffect.ALLOW,
-                        Principal=Principal(AWS="ec2.amazonaws.com"),
+                        Principal=Principal(Service="ec2.amazonaws.com"),
                         Action=["sts:AssumeRole"],
                     )
                 ]
