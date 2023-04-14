@@ -16,7 +16,6 @@ pandas = "^2.0.0"
 tqdm = "^4.65.0"
 pulumi = "^3.62.0"
 pulumi-aws = "^5.35.0"
-pulumi-tls = "^4.10.0"
 psycopg = { extras = ["binary"], version = "^3.1.8" }
 pglast = "^5.1"
 pendulum = "^2.1.2"
