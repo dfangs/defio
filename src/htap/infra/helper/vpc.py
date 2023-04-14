@@ -1,8 +1,9 @@
 import ipaddress
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum, unique
-from typing import Any, Self
+from typing import Any, Protocol, Self, TypeAlias, runtime_checkable
 
+import pulumi
 import pulumi_aws as aws
 from attrs import define
 
@@ -32,9 +33,24 @@ class SELF_TARGET(Sentinel):
     """Sentinel value representing a self-target for Security Group Rules."""
 
 
+@runtime_checkable
+class _SecurityGroupInterface(Protocol):
+    """
+    Workaround for a circular import between the VPC component module
+    and helper module.
+    """
+
+    _sg: aws.ec2.SecurityGroup
+
+    @property
+    @abstractmethod
+    def id(self) -> pulumi.Output[str]:
+        ...
+
+
 # Type alias
-SecurityGroupRuleTarget = (
-    ipaddress.IPv4Network | aws.ec2.SecurityGroup | type[SELF_TARGET]
+SecurityGroupRuleTarget: TypeAlias = (
+    ipaddress.IPv4Network | _SecurityGroupInterface | type[SELF_TARGET]
 )
 
 
@@ -60,7 +76,7 @@ class _SecurityGroupRule(ABC):
         match self.target:
             case ipaddress.IPv4Network():
                 return {"cidr_blocks": [str(self.target)]}
-            case aws.ec2.SecurityGroup():
+            case _SecurityGroupInterface():
                 return {"source_security_group_id": self.target.id}
             case _ if self.target is SELF_TARGET:
                 return {"self": True}
