@@ -152,7 +152,7 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
         performance_insights_retention_period: int = 7,
         enable_enhanced_monitoring: bool = False,
         monitoring_interval: Literal[0, 1, 5, 10, 15, 30, 60] = 60,
-        ca_cert_identifier: str = "rds-ca-rsa2048-g1",
+        ca_cert_identifier: str = "rds-ca-ecc384-g1",
         apply_immediately: bool = False,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
@@ -183,10 +183,10 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
                     value="auto_explain,pg_stat_statements,pg_hint_plan,pgaudit",
                     apply_method="pending-reboot",  # Required for static parameters
                 ),
-                # TODO: Only allow connections via SSL (i.e. with certificates)
+                # Only allow connections via SSL (i.e. with CA certificates)
                 aws.rds.ClusterParameterGroupParameterArgs(
                     name="rds.force_ssl",
-                    value="0",
+                    value="1",
                 ),
             ],
             opts=pulumi.ResourceOptions(parent=self),
@@ -238,7 +238,7 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
                 [sg.id for sg in security_groups] if len(security_groups) > 0 else None
             ),
             iam_roles=(
-                [role.name for role in iam_roles] if len(iam_roles) > 0 else None
+                [role.arn for role in iam_roles] if len(iam_roles) > 0 else None
             ),
             storage_encrypted=enable_encryption,
             enabled_cloudwatch_logs_exports=(
@@ -247,7 +247,11 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
             backup_retention_period=backup_retention_period,
             deletion_protection=deletion_protection,
             apply_immediately=apply_immediately,
-            opts=pulumi.ResourceOptions(parent=self),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                # See https://stackoverflow.com/a/71641828
+                ignore_changes=["db_cluster_parameter_group_name"],
+            ),
         )
 
         self._instances = [
