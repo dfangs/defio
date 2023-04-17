@@ -9,7 +9,11 @@ from htap.infra.components.iam import InstanceProfile, ManagedPolicy, Role
 from htap.infra.components.redshift import RedshiftCluster, RedshiftSubnetGroup
 from htap.infra.components.s3 import Bucket
 from htap.infra.components.vpc import Vpc
-from htap.infra.constants import ALL_NETWORK
+from htap.infra.constants import (
+    ALL_NETWORK,
+    DEFAULT_PORT_POSTGRESQL,
+    DEFAULT_PORT_REDSHIFT,
+)
 from htap.infra.helper.aurora import AuroraEngine, ClusterRoleFeature, DbInstanceClass
 from htap.infra.helper.ec2 import Ami, AmiArch, AmiVariant, AmiVersion
 from htap.infra.helper.iam import (
@@ -68,7 +72,9 @@ with Vpc("vpc", cidr_block=VPC_CIDR_BLOCK) as vpc:
     aurora_security_group = vpc.add_security_group(
         "aurora",
         ingress_rules=[
-            SecurityGroupIngressRule.for_all_traffic(ec2_security_group),
+            SecurityGroupIngressRule.for_custom_tcp(
+                ec2_security_group, port=DEFAULT_PORT_POSTGRESQL
+            ),
             SecurityGroupIngressRule.for_all_traffic(SELF_TARGET),
         ],
         egress_rules=[SecurityGroupEgressRule.for_all_traffic(ALL_NETWORK)],
@@ -77,7 +83,9 @@ with Vpc("vpc", cidr_block=VPC_CIDR_BLOCK) as vpc:
     redshift_security_group = vpc.add_security_group(
         "redshift",
         ingress_rules=[
-            SecurityGroupIngressRule.for_all_traffic(ec2_security_group),
+            SecurityGroupIngressRule.for_custom_tcp(
+                ec2_security_group, port=DEFAULT_PORT_REDSHIFT
+            ),
             SecurityGroupIngressRule.for_all_traffic(SELF_TARGET),
         ],
         egress_rules=[SecurityGroupEgressRule.for_all_traffic(ALL_NETWORK)],

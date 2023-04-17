@@ -2,6 +2,8 @@ from collections.abc import Set
 from enum import Enum, StrEnum, auto, unique
 from typing import TypeVar
 
+from htap.infra.constants import DEFAULT_PORT_MYSQL, DEFAULT_PORT_POSTGRESQL
+
 _T = TypeVar("_T")
 
 
@@ -59,8 +61,8 @@ class AuroraEngine(Enum):
     @property
     def default_port(self) -> int:
         return self._branch(
-            mysql_value=3306,
-            postgresql_value=5432,
+            mysql_value=DEFAULT_PORT_MYSQL,
+            postgresql_value=DEFAULT_PORT_POSTGRESQL,
         )
 
     @property

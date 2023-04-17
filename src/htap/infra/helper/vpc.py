@@ -1,12 +1,13 @@
 import ipaddress
 from abc import ABC, abstractmethod
 from enum import Enum, unique
-from typing import Any, Self, TypeAlias
+from typing import Any, Self, TypeAlias, overload
 
 import pulumi
 import pulumi_aws as aws
 from attrs import define
 
+from htap.infra.constants import DEFAULT_PORT_REDSHIFT
 from htap.infra.utils import get_aws_region
 from htap.utils.sentinel import Sentinel
 
@@ -84,58 +85,120 @@ class _SecurityGroupRule(ABC):
 
     @classmethod
     def for_all_traffic(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
         # Setting `protocol=ALL` will ignore the port range
         return cls(aws.ec2.ProtocolType.ALL, (-1, -1), target, description)
 
     @classmethod
     def for_all_tcp(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
         return cls(aws.ec2.ProtocolType.TCP, (0, 65535), target, description)
 
     @classmethod
     def for_all_udp(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
         return cls(aws.ec2.ProtocolType.UDP, (0, 65535), target, description)
 
     @classmethod
     def for_all_icmp(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
         return cls(aws.ec2.ProtocolType.ICMP, (-1, -1), target, description)
 
+    @overload
+    @classmethod
+    def for_custom_tcp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port: int,
+        description: str | None = None,
+    ) -> Self:
+        ...
+
+    @overload
+    @classmethod
+    def for_custom_tcp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port_range: tuple[int, int],
+        description: str | None = None,
+    ) -> Self:
+        ...
+
+    @classmethod
+    def for_custom_tcp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port: int | None = None,
+        port_range: tuple[int, int] | None = None,
+        description: str | None = None,
+    ) -> Self:
+        if port is not None:
+            return cls(aws.ec2.ProtocolType.TCP, (port, port), target, description)
+        if port_range is not None:
+            return cls(aws.ec2.ProtocolType.TCP, port_range, target, description)
+        raise RuntimeError("Should not reach here")
+
+    @overload
+    @classmethod
+    def for_custom_udp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port: int,
+        description: str | None = None,
+    ) -> Self:
+        ...
+
+    @overload
+    @classmethod
+    def for_custom_udp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port_range: tuple[int, int],
+        description: str | None = None,
+    ) -> Self:
+        ...
+
+    @classmethod
+    def for_custom_udp(
+        cls,
+        target: SecurityGroupRuleTarget,
+        *,
+        port: int | None = None,
+        port_range: tuple[int, int] | None = None,
+        description: str | None = None,
+    ) -> Self:
+        if port is not None:
+            return cls(aws.ec2.ProtocolType.UDP, (port, port), target, description)
+        if port_range is not None:
+            return cls(aws.ec2.ProtocolType.UDP, port_range, target, description)
+        raise RuntimeError("Should not reach here")
+
     @classmethod
     def for_ssh(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
-        return cls(aws.ec2.ProtocolType.TCP, (22, 22), target, description)
+        return cls.for_custom_tcp(target=target, port=22, description=description)
 
     @classmethod
     def for_http(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
-        return cls(aws.ec2.ProtocolType.TCP, (80, 80), target, description)
+        return cls.for_custom_tcp(target=target, port=80, description=description)
 
     @classmethod
     def for_https(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
+        cls, target: SecurityGroupRuleTarget, *, description: str | None = None
     ) -> Self:
-        return cls(aws.ec2.ProtocolType.TCP, (443, 443), target, description)
-
-    @classmethod
-    def for_postgresql(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
-    ) -> Self:
-        return cls(aws.ec2.ProtocolType.TCP, (5432, 5432), target, description)
-
-    @classmethod
-    def for_redshift(
-        cls, target: SecurityGroupRuleTarget, description: str | None = None
-    ) -> Self:
-        return cls(aws.ec2.ProtocolType.TCP, (5439, 5439), target, description)
+        return cls.for_custom_tcp(target=target, port=443, description=description)
 
 
 @define(frozen=True)
