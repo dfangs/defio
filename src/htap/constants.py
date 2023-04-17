@@ -1,6 +1,6 @@
 import ipaddress
 
-PACKAGE_NAME = "htap"  # Used by `ComponentMixin`
+PACKAGE_NAME = "htap"
 
 ALL_NETWORK = ipaddress.IPv4Network("0.0.0.0/0")
 

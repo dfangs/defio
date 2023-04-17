@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
-from htap.infra.constants import PACKAGE_NAME
+from htap.constants import PACKAGE_NAME
 from htap.infra.utils import ComponentMixin, get_az
 
 

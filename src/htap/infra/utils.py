@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pulumi_aws as aws
 
-from htap.infra.constants import PACKAGE_NAME
+from htap.constants import PACKAGE_NAME
 
 
 class ComponentMixin:
