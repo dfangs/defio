@@ -51,7 +51,7 @@ class KeyPair(pulumi.ComponentResource, ComponentMixin):
             with open(path_to_public_key, mode="r", encoding="utf-8") as f:
                 return KeyPair(name, public_key_openssh=f.read(), opts=opts)
         except OSError as exc:
-            raise ValueError("Error when reading file") from exc
+            raise ValueError("Error when reading from file") from exc
 
     @property
     def key_name(self) -> pulumi.Output[str]:
@@ -70,7 +70,7 @@ class NetworkInterface(pulumi.ComponentResource, ComponentMixin):
         /,
         *,
         subnet: Subnet,
-        security_groups: Sequence[SecurityGroup] | None = None,
+        security_groups: Sequence[SecurityGroup] = (),
         private_ip: ipaddress.IPv4Address | None = None,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
@@ -80,9 +80,7 @@ class NetworkInterface(pulumi.ComponentResource, ComponentMixin):
             name,
             subnet_id=subnet.id,
             security_groups=(
-                [sg.id for sg in security_groups]
-                if security_groups is not None
-                else None
+                [sg.id for sg in security_groups] if len(security_groups) > 0 else None
             ),
             private_ip=(str(private_ip) if private_ip is not None else None),
             source_dest_check=True,
@@ -93,7 +91,7 @@ class NetworkInterface(pulumi.ComponentResource, ComponentMixin):
 
     @property
     def id(self) -> pulumi.Output[str]:
-        """Returns the identifier of this Network Interface."""
+        """Returns the identifier of this network interface."""
         return self._network_interface.id
 
 
@@ -140,13 +138,14 @@ class LaunchTemplate(pulumi.ComponentResource, ComponentMixin):
                     ebs=aws.ec2.LaunchTemplateBlockDeviceMappingEbsArgs(
                         # Keep the original volume size (can't decrease since the AMI snapshot has to fit in)
                         volume_size=ami.root_volume_size,
-                        # Default to `gp3` (although AL2022 already uses it as default)
+                        # Default to `gp3` (although AL2023 already uses it as default)
                         volume_type="gp3",
-                        # No need to keep a snapshot of the root volume
+                        # No need to keep a snapshot of the root volume (TODO)
                         delete_on_termination=str(True),
                         # Enable at-rest encryption by default
                         encrypted=str(True),
-                        kms_key_id=None,  # TODO: Need ARN
+                        # TODO: Need ARN instead of alias
+                        # kms_key_id=None,
                     ),
                 )
             ],
@@ -187,10 +186,10 @@ class Instance(pulumi.ComponentResource, ComponentMixin):
         subnet: Subnet,
         instance_type: str,
         ami: Ami,
+        security_groups: Sequence[SecurityGroup] = (),
+        private_ip: ipaddress.IPv4Address | None = None,
         key_pair: KeyPair | None = None,
         instance_profile: InstanceProfile | None = None,
-        security_groups: Sequence[SecurityGroup] | None = None,
-        private_ip: ipaddress.IPv4Address | None = None,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(self.get_type_name(), name, opts=opts)
@@ -215,7 +214,7 @@ class Instance(pulumi.ComponentResource, ComponentMixin):
         self._instance = aws.ec2.Instance(
             name,
             launch_template=aws.ec2.InstanceLaunchTemplateArgs(id=launch_template.id),
-            instance_type=instance_type,  # NOTE: Not validated
+            instance_type=instance_type,  # TODO: Not validated
             tags={"Name": name},  # Use Pulumi logical name
             opts=pulumi.ResourceOptions(parent=self),
         )

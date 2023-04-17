@@ -333,12 +333,12 @@ class RouteTable(pulumi.ComponentResource, ComponentMixin):
     ) -> aws.ec2.Route | aws.ec2.VpcEndpointRouteTableAssociation:
         """
         Creates a route that directs all outbound traffic to the given target
-        and associates it with this Route Table.
+        and associates it with this route table.
         """
         if isinstance(target, (aws.ec2.InternetGateway, aws.ec2.NatGateway)):
             if self._has_route_to_internet_gateway or self._has_route_to_nat_gateway:
                 raise ValueError(
-                    "Route Table already has a route to an internet gateway or NAT gateway"
+                    "Route table already has a route to an internet gateway or NAT gateway"
                 )
         if isinstance(target, aws.ec2.InternetGateway):
             self._has_route_to_internet_gateway = True
@@ -377,7 +377,7 @@ class RouteTable(pulumi.ComponentResource, ComponentMixin):
 
     @property
     def id(self) -> pulumi.Output[str]:
-        """Returns the identifier of this Route Table."""
+        """Returns the identifier of this route table."""
         return self._route_table.id
 
     @property
@@ -414,7 +414,7 @@ class Subnet(pulumi.ComponentResource, ComponentMixin):
                 raise ValueError("CIDR block must not overlap with other subnets")
 
         if route_table not in vpc.route_tables:
-            raise ValueError("Route Table has not been added to this VPC")
+            raise ValueError("Route table has not been added to this VPC")
 
         self._cidr_block = cidr_block
         self._is_public = map_public_ip and route_table.has_public_route
@@ -447,12 +447,12 @@ class Subnet(pulumi.ComponentResource, ComponentMixin):
 
     @property
     def id(self) -> pulumi.Output[str]:
-        """Returns the identifier of this Subnet."""
+        """Returns the identifier of this subnet."""
         return self._subnet.id
 
     @property
     def cidr_block(self) -> ipaddress.IPv4Network:
-        """Returns the CIDR block of this Subnet."""
+        """Returns the CIDR block of this subnet."""
         return self._cidr_block
 
     @property
@@ -461,7 +461,7 @@ class Subnet(pulumi.ComponentResource, ComponentMixin):
         Returns `True` iff this subnet is accessible to the internet.
 
         This depends not only on the value of `map_public_ip`, but also on
-        whether the associated Route Table has a route to an internet gateway
+        whether the associated route table has a route to an internet gateway
         (by definition; see AWS Documentation for more details).
         """
         return self._is_public
@@ -524,5 +524,5 @@ class SecurityGroup(pulumi.ComponentResource, ComponentMixin):
 
     @property
     def id(self) -> pulumi.Output[str]:
-        """Returns the identifier of this Security Group."""
+        """Returns the identifier of this security group."""
         return self._sg.id
