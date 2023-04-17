@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from enum import Enum, unique
+from enum import StrEnum, unique
 from typing import Any, TypeAlias
 
 from attrs import define, fields
@@ -53,7 +53,7 @@ class Statement:
         if self.Sid is not None:
             result["Sid"] = self.Sid
 
-        result["Effect"] = self.Effect.value
+        result["Effect"] = self.Effect
 
         if self.Principal is WILDCARD:
             result["Principal"] = "*"
@@ -79,7 +79,7 @@ class Statement:
 
 
 @unique
-class StatementEffect(Enum):
+class StatementEffect(StrEnum):
     ALLOW = "Allow"
     DENY = "Deny"
 
