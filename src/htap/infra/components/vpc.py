@@ -11,6 +11,7 @@ import pulumi_aws as aws
 from htap.infra.constants import ALL_NETWORK
 from htap.infra.helper.vpc import (
     GatewayEndpointService,
+    SecurityGroupAbc,
     SecurityGroupEgressRule,
     SecurityGroupIngressRule,
 )
@@ -467,7 +468,7 @@ class Subnet(pulumi.ComponentResource, ComponentMixin):
         return self._is_public
 
 
-class SecurityGroup(pulumi.ComponentResource, ComponentMixin):
+class SecurityGroup(pulumi.ComponentResource, ComponentMixin, SecurityGroupAbc):
     """
     AWS EC2 Security Group component resource for Pulumi.
     """

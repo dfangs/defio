@@ -1,7 +1,7 @@
 import ipaddress
 from abc import ABC, abstractmethod
 from enum import Enum, unique
-from typing import Any, Protocol, Self, TypeAlias, runtime_checkable
+from typing import Any, Self, TypeAlias
 
 import pulumi
 import pulumi_aws as aws
@@ -28,29 +28,26 @@ class GatewayEndpointService(Enum):
         return f"com.amazonaws.{get_aws_region()}.{self.value}"
 
 
-# pylint: disable-next=invalid-name
-class SELF_TARGET(Sentinel):
-    """Sentinel value representing a self-target for Security Group Rules."""
-
-
-@runtime_checkable
-class _SecurityGroupInterface(Protocol):
+class SecurityGroupAbc(ABC):
     """
     Workaround for a circular import between the VPC component module
     and helper module.
     """
 
-    _sg: aws.ec2.SecurityGroup
-
     @property
     @abstractmethod
     def id(self) -> pulumi.Output[str]:
-        ...
+        raise NotImplementedError
+
+
+# pylint: disable-next=invalid-name
+class SELF_TARGET(Sentinel):
+    """Sentinel value representing a self-target for Security Group Rules."""
 
 
 # Type alias
 SecurityGroupRuleTarget: TypeAlias = (
-    ipaddress.IPv4Network | _SecurityGroupInterface | type[SELF_TARGET]
+    ipaddress.IPv4Network | SecurityGroupAbc | type[SELF_TARGET]
 )
 
 
@@ -76,7 +73,7 @@ class _SecurityGroupRule(ABC):
         match self.target:
             case ipaddress.IPv4Network():
                 return {"cidr_blocks": [str(self.target)]}
-            case _SecurityGroupInterface():
+            case SecurityGroupAbc():
                 return {"source_security_group_id": self.target.id}
             case _ if self.target is SELF_TARGET:
                 return {"self": True}

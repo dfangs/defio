@@ -1,10 +1,11 @@
 import ipaddress
 
-from pulumi_aws.ec2 import ProtocolType, SecurityGroup
+from pulumi_aws.ec2 import ProtocolType
 from pytest_mock import MockerFixture
 
 from htap.infra.helper.vpc import (
     SELF_TARGET,
+    SecurityGroupAbc,
     SecurityGroupEgressRule,
     SecurityGroupIngressRule,
 )
@@ -29,7 +30,7 @@ def test_security_group_ingress_rule() -> None:
 
 
 def test_security_group_egress_rule(mocker: MockerFixture) -> None:
-    mocked_sg = mocker.Mock(spec=SecurityGroup)
+    mocked_sg = mocker.Mock(spec=SecurityGroupAbc)
     type(mocked_sg).id = mocker.PropertyMock(return_value="sg-1234")
     description = "SSH egress rule"
 
