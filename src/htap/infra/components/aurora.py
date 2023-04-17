@@ -21,7 +21,7 @@ from htap.infra.utils import ComponentMixin, get_aws_account_id, get_aws_region
 
 class AuroraSubnetGroup(pulumi.ComponentResource, ComponentMixin):
     """
-    Amazon RDS DB Subnet Group component resource for Pulumi.
+    Pulumi component resource for Amazon RDS DB Subnet Group.
     """
 
     def __init__(
@@ -53,7 +53,7 @@ class AuroraSubnetGroup(pulumi.ComponentResource, ComponentMixin):
 
 class AuroraInstance(pulumi.ComponentResource, ComponentMixin):
     """
-    Amazon Aurora DB Instance component resource for Pulumi.
+    Pulumi component resource for Amazon Aurora DB Instance.
     """
 
     def __init__(
@@ -124,7 +124,7 @@ class AuroraInstance(pulumi.ComponentResource, ComponentMixin):
 
 class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
     """
-    Provisioned Amazon Aurora cluster component resource for Pulumi.
+    Pulumi component resource for provisioned Amazon Aurora cluster.
     """
 
     def __init__(

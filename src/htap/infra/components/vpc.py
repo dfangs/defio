@@ -24,7 +24,7 @@ RouteTarget: TypeAlias = (
 
 class Vpc(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS VPC (Virtual Private Cloud) component resource for Pulumi.
+    Pulumi component resource for AWS VPC (Virtual Private Cloud).
 
     Can (and should) be used as a context manager.
     """
@@ -303,7 +303,7 @@ class Vpc(pulumi.ComponentResource, ComponentMixin):
 
 class RouteTable(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS Route Table component resource for Pulumi.
+    Pulumi component resource for AWS Route Table.
     """
 
     def __init__(
@@ -390,7 +390,7 @@ class RouteTable(pulumi.ComponentResource, ComponentMixin):
 
 class Subnet(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS Subnet component resource for Pulumi.
+    Pulumi component resource for AWS Subnet.
     """
 
     def __init__(
@@ -470,7 +470,7 @@ class Subnet(pulumi.ComponentResource, ComponentMixin):
 
 class SecurityGroup(pulumi.ComponentResource, ComponentMixin, SecurityGroupAbc):
     """
-    AWS EC2 Security Group component resource for Pulumi.
+    Pulumi component resource for AWS EC2 Security Group.
     """
 
     def __init__(

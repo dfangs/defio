@@ -15,7 +15,7 @@ from htap.infra.utils import ComponentMixin
 
 class KeyPair(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS EC2 Key Pair component resource for Pulumi.
+    Pulumi component resource for AWS EC2 Key Pair.
     """
 
     def __init__(
@@ -61,7 +61,7 @@ class KeyPair(pulumi.ComponentResource, ComponentMixin):
 
 class NetworkInterface(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS Network Interface component resource for Pulumi.
+    Pulumi component resource for AWS Network Interface.
     """
 
     def __init__(
@@ -97,7 +97,7 @@ class NetworkInterface(pulumi.ComponentResource, ComponentMixin):
 
 class LaunchTemplate(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS EC2 Launch Template component resource for Pulumi.
+    Pulumi component resource for AWS EC2 Launch Template.
     """
 
     def __init__(
@@ -175,7 +175,7 @@ class LaunchTemplate(pulumi.ComponentResource, ComponentMixin):
 
 class Instance(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS EC2 Instance component resource for Pulumi.
+    Pulumi component resource for AWS EC2 Instance.
     """
 
     def __init__(

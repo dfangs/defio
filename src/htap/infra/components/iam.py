@@ -9,7 +9,7 @@ from htap.infra.utils import ComponentMixin
 
 class ManagedPolicy(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS IAM Managed Policy component resource for Pulumi.
+    Pulumi component resource for AWS IAM Managed Policy.
     """
 
     def __init__(
@@ -57,7 +57,7 @@ class AwsManagedPolicy:
 
 class Role(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS IAM Role component resource for Pulumi.
+    Pulumi component resource for AWS IAM Role.
 
     All policies associated with the Role (i.e. trust policy and
     permissions policy, both inline and managed) must be specified
@@ -115,7 +115,7 @@ class Role(pulumi.ComponentResource, ComponentMixin):
 
 class InstanceProfile(pulumi.ComponentResource, ComponentMixin):
     """
-    AWS IAM Instance Profile component resource for Pulumi.
+    Pulumi component resource for AWS IAM Instance Profile.
 
     An IAM Instance Profile is essentially a container for an IAM Role
     that can be assumed by EC2 instances.
