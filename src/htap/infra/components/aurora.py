@@ -73,17 +73,34 @@ class AuroraInstance(pulumi.ComponentResource, ComponentMixin):
         subnet_group: AuroraSubnetGroup,
         publicly_accessible: bool,
         availability_zone: str | None = None,
-        enable_performance_insights: bool = True,
-        performance_insights_retention_period: int = 7,
-        enable_enhanced_monitoring: bool = False,
-        monitoring_interval: Literal[0, 1, 5, 10, 15, 30, 60] = 60,
+        enable_performance_insights: bool | None = None,
+        performance_insights_retention_period: int | None = None,
+        enable_enhanced_monitoring: bool | None = None,
+        monitoring_interval: Literal[0, 1, 5, 10, 15, 30, 60] | None = None,
         monitoring_role: Role | None = None,
-        ca_cert_identifier: str = "rds-ca-rsa2048-g1",
+        ca_cert_identifier: str | None = None,
         apply_immediately: bool = False,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(self.get_type_name(), instance_identifier, opts=opts)
 
+        # Default values
+        if enable_performance_insights is None:
+            enable_performance_insights = True
+
+        if performance_insights_retention_period is None:
+            performance_insights_retention_period = 7  # Free-tier
+
+        if enable_enhanced_monitoring is None:
+            enable_enhanced_monitoring = False
+
+        if monitoring_interval is None:
+            monitoring_interval = 60
+
+        if ca_cert_identifier is None:
+            ca_cert_identifier = "rds-ca-rsa2048-g1"
+
+        # Input validations
         if (
             performance_insights_retention_period not in {7, 731}
             and performance_insights_retention_period % 31 != 0
@@ -152,21 +169,35 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
         initial_database_name: str | None = None,
         security_groups: Sequence[SecurityGroup] = (),
         iam_roles: Mapping[Role, ClusterRoleFeature] = Map(),
-        enable_encryption: bool = True,
-        enable_cloudwatch_logs_exports: bool = True,
-        backup_retention_period: int = 1,
-        deletion_protection: bool = False,
+        enable_encryption: bool | None = None,
+        enable_cloudwatch_logs_exports: bool | None = None,
+        backup_retention_period: int | None = None,
+        deletion_protection: bool | None = None,
         availability_zone: str | None = None,
-        enable_performance_insights: bool = True,
-        performance_insights_retention_period: int = 7,
-        enable_enhanced_monitoring: bool = False,
-        monitoring_interval: Literal[0, 1, 5, 10, 15, 30, 60] = 60,
-        ca_cert_identifier: str = "rds-ca-ecc384-g1",
+        enable_performance_insights: bool | None = None,
+        performance_insights_retention_period: int | None = None,
+        enable_enhanced_monitoring: bool | None = None,
+        monitoring_interval: Literal[0, 1, 5, 10, 15, 30, 60] | None = None,
+        ca_cert_identifier: str | None = None,
         apply_immediately: bool = False,
         opts: pulumi.ResourceOptions | None = None,
     ) -> None:
         super().__init__(self.get_type_name(), cluster_identifier, opts=opts)
 
+        # Default values
+        if enable_encryption is None:
+            enable_encryption = True
+
+        if enable_cloudwatch_logs_exports is None:
+            enable_cloudwatch_logs_exports = True
+
+        if backup_retention_period is None:
+            backup_retention_period = 1  # Free-tier
+
+        if deletion_protection is None:
+            deletion_protection = False  # Otherwise can't delete without disabling this
+
+        # Input validations
         if num_instances < 1:
             raise ValueError("There must be at least one instance")
 
