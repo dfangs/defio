@@ -1,4 +1,7 @@
-from collections.abc import Sequence
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from functools import cache
 
 import pulumi
 import pulumi_aws as aws
@@ -41,6 +44,61 @@ class RedshiftSubnetGroup(pulumi.ComponentResource, ComponentMixin):
         return self._subnet_group.name
 
 
+class RedshiftParameterGroup(pulumi.ComponentResource, ComponentMixin):
+    """
+    Pulumi component resource for Amazon Redshift Parameter Group.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        /,
+        *,
+        parameters: Mapping[str, str],
+        opts: pulumi.ResourceOptions | None = None,
+    ) -> None:
+        super().__init__(self.get_type_name(), name, opts=opts)
+
+        # TODO: Validation for parameter names?
+
+        self._parameter_group = aws.redshift.ParameterGroup(
+            name,
+            # Currently, this is the only version of Amazon Redshift engine
+            family="redshift-1.0",
+            parameters=[
+                aws.redshift.ParameterGroupParameterArgs(name=name, value=value)
+                for name, value in parameters.items()
+            ],
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        self.register_outputs({"name": self.name})
+
+    @cache
+    @staticmethod
+    def get_shared() -> RedshiftParameterGroup:
+        """
+        Returns the shared "default" parameter group for Redshift clusters.
+
+        Note that this default is not necessarily the same as the default
+        parameter group provided by Redshift. Rather, this method is used
+        for sharing/reusing the same parameter group across all clusters
+        created by Pulumi--hence the `@cache` decorator.
+        """
+        return RedshiftParameterGroup(
+            "redshift-parameter-group-shared",
+            parameters={
+                # Only allow connections via SSL (i.e. with CA certificates)
+                "require_ssl": "true",
+            },
+        )
+
+    @property
+    def name(self) -> pulumi.Output[str]:
+        """Returns the name of this cluster parameter group."""
+        return self._parameter_group.name
+
+
 class RedshiftCluster(pulumi.ComponentResource, ComponentMixin):
     """
     Pulumi component resource for Amazon Redshift Cluster.
@@ -76,6 +134,10 @@ class RedshiftCluster(pulumi.ComponentResource, ComponentMixin):
                 "`enable_availability_zone_relocation` cannot be `True`"
             )
 
+        # For Redshift, reuse the same parameter group for all clusters
+        # since unlike Aurora, it doesn't allow for a lot of tuning
+        parameter_group = RedshiftParameterGroup.get_shared()
+
         self._cluster = aws.redshift.Cluster(
             cluster_identifier,
             cluster_identifier=cluster_identifier,
@@ -88,7 +150,7 @@ class RedshiftCluster(pulumi.ComponentResource, ComponentMixin):
             final_snapshot_identifier=f"{cluster_identifier}-final-snapshot",
             publicly_accessible=publicly_accessible,
             database_name=initial_database_name,
-            # cluster_parameter_group_name=cluster_parameter_group.name,
+            cluster_parameter_group_name=parameter_group.name,
             vpc_security_group_ids=(
                 [sg.id for sg in security_groups] if len(security_groups) > 0 else None
             ),
