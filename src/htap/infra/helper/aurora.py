@@ -117,3 +117,12 @@ class DbInstanceClass(StrEnum):
     X2G_8XLARGE = auto()
     X2G_12XLARGE = auto()
     X2G_16XLARGE = auto()
+
+
+@unique
+class ClusterRoleFeature(StrEnum):
+    COMPREHEND = "Comprehend"
+    LAMBDA = "Lambda"
+    S3_EXPORT = "s3Export"
+    S3_IMPORT = "s3Import"
+    SAGE_MAKER = "SageMaker"

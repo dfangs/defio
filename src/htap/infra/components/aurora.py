@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 import pulumi
 import pulumi_aws as aws
+from immutables import Map
 
 from htap.infra.components.iam import AwsManagedPolicy, Role
 from htap.infra.components.vpc import SecurityGroup, Subnet
-from htap.infra.helper.aurora import AuroraEngine, DbEngineMode, DbInstanceClass
+from htap.infra.helper.aurora import (
+    AuroraEngine,
+    ClusterRoleFeature,
+    DbEngineMode,
+    DbInstanceClass,
+)
 from htap.infra.helper.iam import (
     Condition,
     PolicyDocument,
@@ -125,6 +131,9 @@ class AuroraInstance(pulumi.ComponentResource, ComponentMixin):
 class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
     """
     Pulumi component resource for provisioned Amazon Aurora cluster.
+
+    NOTE: Has only been tested with Aurora PostgreSQL clusters.
+    In particular, for some parameters, the set of allowable values may be different.
     """
 
     def __init__(
@@ -142,7 +151,7 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
         publicly_accessible: bool,
         initial_database_name: str | None = None,
         security_groups: Sequence[SecurityGroup] = (),
-        iam_roles: Sequence[Role] = (),
+        iam_roles: Mapping[Role, ClusterRoleFeature] = Map(),
         enable_encryption: bool = True,
         enable_cloudwatch_logs_exports: bool = True,
         backup_retention_period: int = 1,
@@ -237,9 +246,6 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
             vpc_security_group_ids=(
                 [sg.id for sg in security_groups] if len(security_groups) > 0 else None
             ),
-            iam_roles=(
-                [role.arn for role in iam_roles] if len(iam_roles) > 0 else None
-            ),
             storage_encrypted=enable_encryption,
             enabled_cloudwatch_logs_exports=(
                 list(engine.log_types) if enable_cloudwatch_logs_exports else None
@@ -254,9 +260,19 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
             ),
         )
 
+        # Use `ClusterRoleAssociation` instead of the `iam_roles` attribute
+        # since it is more robust (the latter had a bug with resource updates)
+        for i, (role, feature) in enumerate(iam_roles.items()):
+            aws.rds.ClusterRoleAssociation(
+                f"{cluster_identifier}-cluster-role-association-{i}",
+                db_cluster_identifier=self.id,
+                role_arn=role.arn,
+                feature_name=feature,
+            )
+
         self._instances = [
             AuroraInstance(
-                f"{cluster_identifier}-instance-{i}",
+                f"{cluster_identifier}-instance-{i + 1}",  # Use 1-based indexing
                 cluster=self,
                 engine=engine,
                 instance_class=instance_class,
