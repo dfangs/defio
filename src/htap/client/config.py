@@ -101,6 +101,7 @@ class PulumiDbConfig(DbConfig):
 
         raise ValueError("dbname is not provided by either user or Pulumi")
 
+    @property
     @abstractmethod
     @override
     def ssl_root_cert_path(self) -> Path:

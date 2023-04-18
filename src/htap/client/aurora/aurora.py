@@ -27,6 +27,7 @@ class AuroraClient(PostgresClient):
 class PulumiAuroraConfig(PulumiDbConfig):
     """Pulumi DB config for Amazon Aurora."""
 
+    @property
     @override
     def ssl_root_cert_path(self) -> Path:
         return Path(__file__).parent / "aurora-ca-bundle.pem"
