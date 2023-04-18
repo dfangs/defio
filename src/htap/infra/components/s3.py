@@ -73,17 +73,20 @@ class Bucket(pulumi.ComponentResource, ComponentMixin):
                 opts=pulumi.ResourceOptions(parent=self),
             )
 
-        self.register_outputs({"arn": self.arn})
+        self.register_outputs({"arn": self.get_arn()})
 
     @property
-    def arn(self) -> str:
+    def arn(self) -> pulumi.Output[str]:
+        """
+        Returns the ARN of this S3 bucket.
+        """
+        return self._bucket.arn
+
+    def get_arn(self) -> str:
         """
         Returns the ARN of this S3 bucket.
 
-        Note:
-        Return a `str` instead of `pulumi.Output[str]` so that it can be
-        used immediately (e.g., inside `PolicyDocument`).
-        This may cause Pulumi to not infer the resource dependency if this
-        value is treated as a `pulumi.Input`, and thus do not use it as such.
+        This returns a `str` instead of `pulumi.Output[str]` so that
+        it can be used immediately (e.g., inside a `PolicyDocument`).
         """
         return f"arn:aws:s3:::{self._name}"

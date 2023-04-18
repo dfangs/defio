@@ -3,7 +3,18 @@ from pathlib import Path
 
 import pulumi
 
-from htap.constants import ALL_NETWORK, DEFAULT_PORT_POSTGRESQL, DEFAULT_PORT_REDSHIFT
+from htap.constants import (
+    ALL_NETWORK,
+    AURORA_KEY_PREFIX,
+    DEFAULT_PORT_POSTGRESQL,
+    DEFAULT_PORT_REDSHIFT,
+    HOST_KEY_SUFFIX,
+    INITIAL_DBNAME_KEY_SUFFIX,
+    PASSWORD_KEY_SUFFIX,
+    PORT_KEY_SUFFIX,
+    REDSHIFT_KEY_PREFIX,
+    USERNAME_KEY_SUFFIX,
+)
 from htap.infra.components.aurora import AuroraCluster, AuroraSubnetGroup
 from htap.infra.components.ec2 import Instance, KeyPair
 from htap.infra.components.iam import InstanceProfile, ManagedPolicy, Role
@@ -117,8 +128,8 @@ htap_s3_import_policy = ManagedPolicy(
                     "s3:ListBucket",
                 ],
                 Resource=[
-                    htap_bucket.arn,
-                    f"{htap_bucket.arn}/*",
+                    htap_bucket.get_arn(),
+                    f"{htap_bucket.get_arn()}/*",
                 ],
             )
         ]
@@ -156,33 +167,66 @@ htap_s3_import_role = Role(
 
 ## Database clusters
 
-aurora_cluster = AuroraCluster(
-    "htap-aurora",
-    num_instances=1,
-    engine=AuroraEngine.POSTGRESQL_15,
-    instance_class=DbInstanceClass.R6G_LARGE,
-    subnet_group=AuroraSubnetGroup("htap-aurora-subnets", subnets=private_subnets),
-    master_username=config.require("db-username"),
-    master_password=config.require("db-password"),
-    skip_final_snapshot=True,
-    publicly_accessible=False,
-    initial_database_name="htap",
-    security_groups=[aurora_security_group],
-    iam_roles={htap_s3_import_role: ClusterRoleFeature.S3_IMPORT},
-    apply_immediately=True,
-)
+aurora_clusters = [
+    AuroraCluster(
+        "htap-aurora",
+        num_instances=1,
+        engine=AuroraEngine.POSTGRESQL_15,
+        instance_class=DbInstanceClass.R6G_LARGE,
+        subnet_group=AuroraSubnetGroup("htap-aurora-subnets", subnets=private_subnets),
+        master_username=config.require_secret("db-username"),
+        master_password=config.require_secret("db-password"),
+        skip_final_snapshot=True,
+        publicly_accessible=False,
+        initial_database_name="htap",
+        security_groups=[aurora_security_group],
+        iam_roles={htap_s3_import_role: ClusterRoleFeature.S3_IMPORT},
+        apply_immediately=True,
+    )
+]
 
-redshift_cluster = RedshiftCluster(
-    "htap-redshift",
-    num_nodes=1,
-    node_type=RedshiftNodeType.DC2_LARGE,
-    subnet_group=RedshiftSubnetGroup("htap-redshift-subnets", subnets=private_subnets),
-    master_username=config.require("db-username"),
-    master_password=config.require("db-password"),
-    skip_final_snapshot=True,
-    publicly_accessible=False,
-    initial_database_name="htap",
-    security_groups=[redshift_security_group],
-    iam_roles=[htap_s3_import_role],
-    apply_immediately=True,
-)
+redshift_clusters = [
+    RedshiftCluster(
+        "htap-redshift",
+        num_nodes=1,
+        node_type=RedshiftNodeType.DC2_LARGE,
+        subnet_group=RedshiftSubnetGroup(
+            "htap-redshift-subnets", subnets=private_subnets
+        ),
+        master_username=config.require_secret("db-username"),
+        master_password=config.require_secret("db-password"),
+        skip_final_snapshot=True,
+        publicly_accessible=False,
+        initial_database_name="htap",
+        security_groups=[redshift_security_group],
+        iam_roles=[htap_s3_import_role],
+        apply_immediately=True,
+    )
+]
+
+# Export values
+for key_prefix, clusters in (
+    (AURORA_KEY_PREFIX, aurora_clusters),
+    (REDSHIFT_KEY_PREFIX, redshift_clusters),
+):
+    for cluster in clusters:
+        pulumi.export(
+            f"{key_prefix}:{cluster.get_id()}:{HOST_KEY_SUFFIX}",
+            cluster.endpoint,
+        )
+        pulumi.export(
+            f"{key_prefix}:{cluster.get_id()}:{PORT_KEY_SUFFIX}",
+            cluster.port,
+        )
+        pulumi.export(
+            f"{key_prefix}:{cluster.get_id()}:{USERNAME_KEY_SUFFIX}",
+            cluster.username,
+        )
+        pulumi.export(
+            f"{key_prefix}:{cluster.get_id()}:{PASSWORD_KEY_SUFFIX}",
+            cluster.password,
+        )
+        pulumi.export(
+            f"{key_prefix}:{cluster.get_id()}:{INITIAL_DBNAME_KEY_SUFFIX}",
+            cluster.initial_database_name,
+        )

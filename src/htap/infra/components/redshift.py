@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from functools import cache
+from typing import cast
 
 import pulumi
 import pulumi_aws as aws
@@ -134,6 +135,9 @@ class RedshiftCluster(pulumi.ComponentResource, ComponentMixin):
                 "`enable_availability_zone_relocation` cannot be `True`"
             )
 
+        # Expose with a getter (on top of as a Pulumi Output)
+        self._cluster_identifier = cluster_identifier
+
         # For Redshift, reuse the same parameter group for all clusters
         # since unlike Aurora, it doesn't allow for a lot of tuning
         parameter_group = RedshiftParameterGroup.get_shared()
@@ -167,9 +171,55 @@ class RedshiftCluster(pulumi.ComponentResource, ComponentMixin):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        self.register_outputs({"id": self.id})
+        self.register_outputs(
+            {
+                "id": self.id,
+                "endpoint": self.endpoint,
+                "port": self.port,
+                "username": self.username,
+                "password": self.password,
+                "initial-dbname": self.initial_database_name,
+            }
+        )
 
     @property
     def id(self) -> pulumi.Output[str]:
         """Returns the identifier of this Redshift cluster."""
         return self._cluster.cluster_identifier
+
+    @property
+    def endpoint(self) -> pulumi.Output[str]:
+        """Returns the endpoint of this Redshift cluster."""
+        # Use `dns_name` instead of `endpoint` since the latter includes the port number
+        return self._cluster.dns_name
+
+    @property
+    def port(self) -> pulumi.Output[int]:
+        """Returns the connection port of this Redshift cluster."""
+        return self._cluster.port
+
+    @property
+    def username(self) -> pulumi.Output[str]:
+        """Returns the master username of this Redshift cluster."""
+        # Username cannot be `None` in our setup
+        return cast(pulumi.Output[str], self._cluster.master_username)
+
+    @property
+    def password(self) -> pulumi.Output[str]:
+        """Returns the master password of this Redshift cluster."""
+        # Password cannot be `None` in our setup
+        return cast(pulumi.Output[str], self._cluster.master_password)
+
+    @property
+    def initial_database_name(self) -> pulumi.Output[str]:
+        """Returns the initial database name of this Redshift cluster."""
+        return self._cluster.database_name
+
+    def get_id(self) -> str:
+        """
+        Returns the identifier of this Redshift cluster.
+
+        This returns a `str` instead of `pulumi.Output[str]` so that
+        it can be used immediately (e.g., as part of stack output keys).
+        """
+        return self._cluster_identifier

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Literal
+from typing import Literal, cast
 
 import pulumi
 import pulumi_aws as aws
@@ -198,8 +198,8 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
             deletion_protection = False  # Otherwise can't delete without disabling this
 
         # Input validations
-        if num_instances < 1:
-            raise ValueError("There must be at least one instance")
+        # if num_instances < 1:
+        #     raise ValueError("There must be at least one instance")
 
         if master_username in {"admin"}:
             # Note: There are many other reserved words
@@ -209,6 +209,9 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
 
         if not 1 <= backup_retention_period <= 35:
             raise ValueError("Backup retention period must be in [1, 35]")
+
+        # Expose with a `str` getter (on top of as a Pulumi Output)
+        self._cluster_identifier = cluster_identifier
 
         # Note: It's fine to create one for each cluster we create
         # (1) AWS quota for parameter groups > the quota for clusters
@@ -322,9 +325,54 @@ class AuroraCluster(pulumi.ComponentResource, ComponentMixin):
             for i in range(num_instances)
         ]
 
-        self.register_outputs({"id": self.id})
+        self.register_outputs(
+            {
+                "id": self.id,
+                "endpoint": self.endpoint,
+                "port": self.port,
+                "username": self.username,
+                "password": self.password,
+                "initial-dbname": self.initial_database_name,
+            }
+        )
 
     @property
     def id(self) -> pulumi.Output[str]:
         """Returns the identifier of this Aurora cluster."""
         return self._cluster.cluster_identifier
+
+    @property
+    def endpoint(self) -> pulumi.Output[str]:
+        """Returns the (writer) endpoint of this Aurora cluster."""
+        return self._cluster.endpoint
+
+    @property
+    def port(self) -> pulumi.Output[int]:
+        """Returns the connection port of this Aurora cluster."""
+        return self._cluster.port
+
+    @property
+    def username(self) -> pulumi.Output[str]:
+        """Returns the master username of this Aurora cluster."""
+        return self._cluster.master_username
+
+    @property
+    def password(self) -> pulumi.Output[str]:
+        """Returns the master password of this Aurora cluster."""
+        # Password cannot be `None` in our setup
+        return cast(pulumi.Output[str], self._cluster.master_password)
+
+    @property
+    def initial_database_name(self) -> pulumi.Output[str | None]:
+        """Returns the initial database name of this Aurora cluster."""
+        # Aurora doesn't create a database by default, unlike Redshift
+        return cast(pulumi.Output[str | None], self._cluster.database_name)
+
+    def get_id(self) -> str:
+        """
+        Returns the identifier of this Aurora cluster.
+
+        This returns a `str` instead of `pulumi.Output[str]` so that
+        it can be used immediately (e.g., as part of stack output keys).
+        """
+        return self._cluster_identifier
