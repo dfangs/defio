@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum, StrEnum
+from enum import Enum, StrEnum, unique
 
 
+@unique
 class UnaryOperator(StrEnum):
     """Unary operators for non-logical operations."""
 
@@ -24,6 +25,7 @@ class UnaryOperator(StrEnum):
             raise ValueError(f"`{symbol}` is not a valid UnaryOperator symbol") from exc
 
 
+@unique
 class BinaryOperator(Enum):
     """Binary operators for non-logical operations."""
 
@@ -35,7 +37,7 @@ class BinaryOperator(Enum):
     NEQ = ("<>", "!=")
     IN = ("IN",)
     LIKE = ("LIKE", "~~")
-    ILIKE = ("ILIKE", "!~~")
+    ILIKE = ("ILIKE", "~~*")
     BETWEEN = ("BETWEEN",)
     NOT_BETWEEN = ("NOT BETWEEN",)
 
@@ -62,6 +64,7 @@ class BinaryOperator(Enum):
             ) from exc
 
 
+@unique
 class LogicalOperator(StrEnum):
     """Boolean/logical operators used in compound predicate."""
 

@@ -94,8 +94,9 @@ class SelectStatement(Statement):
     def __str__(self) -> str:
         return (
             f"SELECT {self.target_list}"
-            f" FROM {self.from_clause}"
-            f" WHERE {self.where_clause};"
+            + (f" FROM {self.from_clause}" if self.from_clause is not None else "")
+            + (f" WHERE {self.where_clause}" if self.where_clause is not None else "")
+            + ";"
         )
 
 

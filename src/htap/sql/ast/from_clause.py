@@ -48,9 +48,11 @@ class Join(FromClause):
 
     @override
     def __str__(self) -> str:
-        return f"{self.left} {self.join_type} {self.right}" + (
-            f" ON {self.predicate}" if self.predicate is not None else ""
-        )
+        if self.join_type is JoinType.CROSS_JOIN:
+            return f"{self.left}, {self.right}"
+
+        assert self.predicate is not None
+        return f"{self.left} {self.join_type} {self.right} ON {self.predicate}"
 
 
 @unique

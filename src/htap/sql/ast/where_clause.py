@@ -37,7 +37,9 @@ class CompoundPredicate(WhereClause):
     def __attrs_post_init__(self) -> None:
         # Pylance doesn't support attrs' decorator-based validator yet
         # See https://github.com/python-attrs/attrs/issues/795
-        assert len(self.children) >= 2
+        assert (self.operator is LogicalOperator.NOT and len(self.children) == 1) or (
+            self.operator is not LogicalOperator.NOT and len(self.children) > 1
+        )
 
     @override
     def __str__(self) -> str:
@@ -50,5 +52,9 @@ class CompoundPredicate(WhereClause):
                     return f"({item})"
                 case _:
                     raise RuntimeError("Should not reach here")
+
+        if self.operator is LogicalOperator.NOT:
+            assert len(self.children) == 1
+            return f"{self.operator} {self.children[0]}"
 
         return f" {self.operator} ".join(parenthesize(child) for child in self.children)
