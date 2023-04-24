@@ -21,9 +21,7 @@ def fixture_crew_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=True, is_unique=False, is_not_null=False
-        ),
+        constraint=ColumnConstraint(is_primary_key=True),
     )
 
 
@@ -32,9 +30,7 @@ def fixture_crew_salary() -> Column:
     return Column(
         name="salary",
         dtype=DataType.FLOAT,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=True
-        ),
+        constraint=ColumnConstraint(is_not_null=True),
     )
 
 
@@ -43,9 +39,6 @@ def fixture_crew_manager_id() -> Column:
     return Column(
         name="manager_id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=False
-        ),
     )
 
 
@@ -64,9 +57,7 @@ def fixture_movie_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=True, is_unique=False, is_not_null=False
-        ),
+        constraint=ColumnConstraint(is_primary_key=True),
     )
 
 
@@ -75,9 +66,7 @@ def fixture_movie_title() -> Column:
     return Column(
         name="title",
         dtype=DataType.STRING,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=True, max_char_length=256
-        ),
+        constraint=ColumnConstraint(is_not_null=True, max_char_length=256),
     )
 
 
@@ -94,9 +83,7 @@ def fixture_director_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=True, is_unique=False, is_not_null=False
-        ),
+        constraint=ColumnConstraint(is_primary_key=True),
     )
 
 
@@ -105,9 +92,7 @@ def fixture_director_name() -> Column:
     return Column(
         name="name",
         dtype=DataType.STRING,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=True
-        ),
+        constraint=ColumnConstraint(is_not_null=True),
     )
 
 
@@ -116,9 +101,7 @@ def fixture_director_is_award_winning() -> Column:
     return Column(
         name="is_award_winning",
         dtype=DataType.BOOLEAN,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=True
-        ),
+        constraint=ColumnConstraint(is_not_null=True),
     )
 
 
@@ -137,9 +120,6 @@ def fixture_md_movie_id() -> Column:
     return Column(
         name="movie_id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=False
-        ),
     )
 
 
@@ -148,9 +128,6 @@ def fixture_md_director_id() -> Column:
     return Column(
         name="director_id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=False
-        ),
     )
 
 

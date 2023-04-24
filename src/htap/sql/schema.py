@@ -209,13 +209,29 @@ class Table:
 
 
 @final
+@define(frozen=True, kw_only=True)
+class ColumnConstraint:
+    """
+    Possible constraints of a table's column, including the type mods
+    (e.g., `n` in `varchar(n)`).
+
+    Note that this does not include foreign key constraint.
+    """
+
+    is_primary_key: bool = False
+    is_unique: bool = False
+    is_not_null: bool = False
+    max_char_length: int | None = None
+
+
+@final
 @define(frozen=True)
 class Column:
     """Column of a table/relation."""
 
     name: str
     dtype: DataType
-    constraint: ColumnConstraint
+    constraint: ColumnConstraint = ColumnConstraint()
 
     @property
     def is_unique(self) -> bool:
@@ -282,19 +298,3 @@ class DataType(Enum):
             if name in {dtype.common_name, dtype.internal_name}:
                 return dtype
         raise ValueError(f"`{name}` does not correspond to any DataType")
-
-
-@final
-@define(frozen=True)
-class ColumnConstraint:
-    """
-    Possible constraints of a table's column, including the type mods
-    (e.g., `n` in `varchar(n)`).
-
-    Note that this does not include foreign key constraint.
-    """
-
-    is_primary_key: bool
-    is_unique: bool
-    is_not_null: bool
-    max_char_length: int | None = None

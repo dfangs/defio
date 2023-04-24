@@ -21,9 +21,7 @@ def fixture_author_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=True, is_unique=False, is_not_null=False
-        ),
+        constraint=ColumnConstraint(is_primary_key=True),
     )
 
 
@@ -32,12 +30,7 @@ def fixture_author_name() -> Column:
     return Column(
         name="name",
         dtype=DataType.STRING,
-        constraint=ColumnConstraint(
-            is_primary_key=False,
-            is_unique=False,
-            is_not_null=True,
-            max_char_length=64,
-        ),
+        constraint=ColumnConstraint(is_not_null=True, max_char_length=64),
     )
 
 
@@ -54,9 +47,7 @@ def fixture_book_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=True, is_unique=False, is_not_null=False
-        ),
+        constraint=ColumnConstraint(is_primary_key=True),
     )
 
 
@@ -66,7 +57,6 @@ def fixture_book_title() -> Column:
         name="title",
         dtype=DataType.STRING,
         constraint=ColumnConstraint(
-            is_primary_key=False,
             is_unique=True,  # Assume books have unique titles
             is_not_null=False,  # Assume books can be untitled
             max_char_length=256,
@@ -79,9 +69,6 @@ def fixture_book_price() -> Column:
     return Column(
         name="price",
         dtype=DataType.FLOAT,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=False
-        ),
     )
 
 
@@ -90,9 +77,7 @@ def fixture_book_author_id() -> Column:
     return Column(
         name="author_id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(
-            is_primary_key=False, is_unique=False, is_not_null=True
-        ),
+        constraint=ColumnConstraint(is_not_null=True),
     )
 
 
