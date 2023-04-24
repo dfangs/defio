@@ -31,12 +31,12 @@ def fixture_mock_get_available_azs(mocker: MockerFixture) -> None:
 @pytest.mark.parametrize(
     "index, wrap_around, expected",
     [
-        pytest.param(0, False, "us-east-1a"),
-        pytest.param(1, False, "us-east-1b"),
-        pytest.param(-1, True, "us-east-1b"),
-        pytest.param(0, True, "us-east-1a"),
-        pytest.param(1, True, "us-east-1b"),
-        pytest.param(2, True, "us-east-1a"),
+        (0, False, "us-east-1a"),
+        (1, False, "us-east-1b"),
+        (-1, True, "us-east-1b"),
+        (0, True, "us-east-1a"),
+        (1, True, "us-east-1b"),
+        (2, True, "us-east-1a"),
     ],
 )
 def test_get_az_ok(_mock_azs, index: int, wrap_around: bool, expected: str) -> None:
@@ -46,8 +46,8 @@ def test_get_az_ok(_mock_azs, index: int, wrap_around: bool, expected: str) -> N
 @pytest.mark.parametrize(
     "index, wrap_around",
     [
-        pytest.param(-1, False),
-        pytest.param(2, False),
+        (-1, False),
+        (2, False),
     ],
 )
 def test_get_az_invalid_index(_mock_azs, index: int, wrap_around: bool) -> None:
