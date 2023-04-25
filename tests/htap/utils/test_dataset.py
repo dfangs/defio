@@ -1,17 +1,23 @@
+from __future__ import annotations
+
 import gzip
 import tempfile
 from collections.abc import Callable, Sequence
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, final
 
 import pytest
+from attrs import define
+from typing_extensions import override
 
 from htap.utils.dataset import (
     NULL_SEQUENCE_SOURCE,
     NULL_SEQUENCE_TARGET,
     NullableFields,
+    TsvReadable,
+    TsvReader,
     TsvWriter,
     compress_to_gzip,
 )
@@ -101,6 +107,44 @@ class TestNullableFields:
             fields.map(index, lambda f: f)
 
 
+@final
+@define(frozen=True)
+class DummyTsvReadable(TsvReadable):
+    id: int
+    name: str
+
+    @override
+    @staticmethod
+    def from_tsv(fields: NullableFields) -> DummyTsvReadable:
+        return DummyTsvReadable(int(fields.require(0)), fields.require(1))
+
+
+class TestTsvReader:
+    @pytest.fixture(name="rows")
+    def fixture_rows(self) -> Sequence[DummyTsvReadable]:
+        return [
+            DummyTsvReadable(0, "tim"),
+            DummyTsvReadable(1, "mit"),
+            DummyTsvReadable(2, "mim"),
+        ]
+
+    def test_skip_header(self, rows: Sequence[DummyTsvReadable]) -> None:
+        f = StringIO(
+            "id\tname\n" + "".join([f"{row.id}\t{row.name}\n" for row in rows])
+        )
+        reader = TsvReader(f, target_class=DummyTsvReadable, skip_header=True)
+
+        for i, row in enumerate(reader):
+            assert row == rows[i]
+
+    def test_not_skip_header(self, rows: Sequence[DummyTsvReadable]) -> None:
+        f = StringIO("".join([f"{row.id}\t{row.name}\n" for row in rows]))
+        reader = TsvReader(f, target_class=DummyTsvReadable, skip_header=False)
+
+        for i, row in enumerate(reader):
+            assert row == rows[i]
+
+
 class DummyEnum(Enum):
     ZERO = 0
     ONE = 1
@@ -144,8 +188,8 @@ class TestTsvWriter:
 
         expected = ""
         for i in range(5):
-            writer.write_line([i, i - 1])
-            expected += f"{i + 1}\t{i}\t{i - 1}\n"
+            writer.write_line([i, writer.line_number])
+            expected += f"{i + 1}\t{i}\t{i + 1}\n"
 
         assert f.getvalue() == expected
 
@@ -178,24 +222,24 @@ class TestTsvWriter:
 
     def test_with_index_and_headers_valid(self) -> None:
         f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=["name", "age"])
+        writer = TsvWriter(f, with_index=True, headers=["id", "name", "age"])
 
-        expected = "name\tage\n"
+        expected = "id\tname\tage\n"
         for i in range(5):
-            writer.write_line([f"tim_{i}", i - 1])
-            expected += f"{i + 1}\ttim_{i}\t{i - 1}\n"
+            writer.write_line([f"tim_{i}", writer.line_number])
+            expected += f"{i + 1}\ttim_{i}\t{i + 1}\n"
 
         assert f.getvalue() == expected
 
     @pytest.mark.parametrize(
         "fields",
-        [[], ["tim"], [1, "tim", 23], ["tim", 23, "mit"]],
+        [[], ["tim"], [1, "tim", 23]],
     )
     def test_with_index_and_headers_invalid(
         self, fields: Sequence[int | float | str | bool | Enum | None]
     ) -> None:
         f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=["name", "age"])
+        writer = TsvWriter(f, with_index=True, headers=["id", "name", "age"])
 
         with pytest.raises(ValueError):
             writer.write_line(fields)

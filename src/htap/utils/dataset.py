@@ -1,9 +1,10 @@
 import gzip
 import shutil
-from collections.abc import Callable, Sequence
+from abc import abstractmethod
+from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Final, TextIO, TypeVar, final
+from typing import Final, Generic, Protocol, Self, TextIO, TypeVar, final
 
 import attrs
 from attrs import define
@@ -63,18 +64,63 @@ class NullableFields(list[str]):
         return func(field) if (field := self.get(index)) is not None else None
 
 
+class TsvReadable(Protocol):
+    """
+    Protocol for classes that represent a single tuple/record/row
+    of a dataset that can be read from TSV.
+    """
+
+    @classmethod
+    @abstractmethod
+    def from_tsv(cls, fields: NullableFields) -> Self:
+        raise NotImplementedError
+
+
+_R = TypeVar("_R", bound=TsvReadable)
+
+
+@final
+@define
+class TsvReader(Generic[_R]):
+    """
+    Helper class for reading dataset tuples/records/rows from a TSV file.
+    """
+
+    f: TextIO
+    target_class: type[_R] = attrs.field(kw_only=True)
+    skip_header: bool = attrs.field(kw_only=True)
+    _num_columns: int | None = attrs.field(default=None, init=False)
+
+    def __attrs_post_init__(self) -> None:
+        if self.skip_header:
+            self._num_columns = len(self.f.readline().strip().split("\t"))
+
+    def __iter__(self) -> Iterator[_R]:
+        for line in self.f:
+            fields = NullableFields(line.strip().split("\t"))
+
+            if self._num_columns is None:
+                self._num_columns = len(fields)
+
+            # Check for consistent number of columns based on the first row
+            # (which could be either the headers or the first data row)
+            assert len(fields) == self._num_columns
+
+            yield self.target_class.from_tsv(fields)
+
+
 @final
 @define
 class TsvWriter:
     """
     Helper class for writing dataset tuples/records/rows (in the form of
-    individual fields) into TSV lines.
+    individual fields) into a TSV file.
     """
 
     f: TextIO
     with_index: bool = attrs.field(kw_only=True)
     headers: Sequence[str] | None = attrs.field(default=None, kw_only=True)
-    line_count: int = attrs.field(default=0, init=False)
+    line_number: int = attrs.field(default=1, init=False)  # Use 1-based indexing
 
     def __attrs_post_init__(self) -> None:
         if self.headers is not None:
@@ -88,10 +134,11 @@ class TsvWriter:
         Writes a sequence of fields into a single TSV line.
 
         Raises a `ValueError` if the `fields` is empty or
-        if the length of `fields` does not match the headers.
+        if the length of `fields` does not match the headers
+        (which include the index number, if applicable).
         """
         if self.headers is not None:
-            if len(fields) != len(self.headers):
+            if len(fields) + int(self.with_index) != len(self.headers):
                 raise ValueError(
                     "The number of fields must match the number of headers"
                 )
@@ -99,12 +146,12 @@ class TsvWriter:
             if len(fields) == 0:
                 raise ValueError("Fields must not be empty")
 
-        self.line_count += 1  # Use 1-based indexing
-
         if self.with_index:
-            self.f.write(str(self.line_count) + "\t")
+            self.f.write(str(self.line_number) + "\t")
 
         self.f.write("\t".join(_to_nullable_field(field) for field in fields) + "\n")
+
+        self.line_number += 1
 
 
 def compress_to_gzip(source: Path, target_dir: Path) -> None:
