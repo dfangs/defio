@@ -1,13 +1,19 @@
+from __future__ import annotations
+
 import gzip
 import shutil
 from abc import abstractmethod
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from enum import Enum
 from pathlib import Path
+from types import TracebackType
 from typing import Final, Generic, Protocol, Self, TextIO, TypeVar, final
 
 import attrs
+from aiofile import AIOFile, LineReader, Writer
 from attrs import define
+
+from htap.utils.attrs import to_tuple
 
 _T = TypeVar("_T")
 
@@ -86,70 +92,145 @@ class TsvReader(Generic[_R]):
     Helper class for reading dataset tuples/records/rows from a TSV file.
     """
 
-    f: TextIO
-    target_class: type[_R] = attrs.field(kw_only=True)
-    skip_header: bool = attrs.field(kw_only=True)
-    _num_columns: int | None = attrs.field(default=None, init=False)
+    _afp: AIOFile = attrs.field(alias="afp")
+    _reader: LineReader = attrs.field(alias="reader")
+    target_class: type[_R]
+    skip_header: bool
 
-    def __attrs_post_init__(self) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        # Ignore the arguments, i.e. no need to handle/suppress exception
+        await self.close()
+
+    @staticmethod
+    async def open(
+        path: Path, /, *, target_class: type[_R], skip_header: bool
+    ) -> TsvReader:
+        """Opens a TSV reader for the specified file."""
+        afp = AIOFile(path, mode="w+", encoding="utf-8")
+        await afp.open()
+
+        return TsvReader(
+            afp=afp,
+            reader=LineReader(afp),
+            target_class=target_class,
+            skip_header=skip_header,
+        )
+
+    async def close(self) -> None:
+        """Closes this TSV reader."""
+        await self._afp.close()
+
+    async def __aiter__(self) -> AsyncIterator[_R]:
+        num_columns: int | None = None
         if self.skip_header:
-            self._num_columns = len(self.f.readline().strip().split("\t"))
+            line = await self._reader.readline()
+            assert isinstance(line, str)
+            num_columns = len(line.strip().split("\t"))
 
-    def __iter__(self) -> Iterator[_R]:
-        for line in self.f:
+        async for line in self._reader:
+            assert isinstance(line, str)
             fields = NullableFields(line.strip().split("\t"))
 
-            if self._num_columns is None:
-                self._num_columns = len(fields)
+            if num_columns is None:
+                num_columns = len(fields)
 
             # Check for consistent number of columns based on the first row
-            # (which could be either the headers or the first data row)
-            assert len(fields) == self._num_columns
+            # (which could be either the header or the first data row)
+            assert len(fields) == num_columns
 
             yield self.target_class.from_tsv(fields)
 
 
 @final
-@define
+@define(kw_only=True)
 class TsvWriter:
     """
     Helper class for writing dataset tuples/records/rows (in the form of
     individual fields) into a TSV file.
     """
 
-    f: TextIO
-    with_index: bool = attrs.field(kw_only=True)
-    headers: Sequence[str] | None = attrs.field(default=None, kw_only=True)
+    _afp: AIOFile = attrs.field(alias="afp")
+    _writer: Writer = attrs.field(alias="writer")
+    with_index: bool
+    header: Sequence[str] | None
     line_number: int = attrs.field(default=1, init=False)  # Use 1-based indexing
 
-    def __attrs_post_init__(self) -> None:
-        if self.headers is not None:
-            assert len(self.headers) > 0
-            self.f.write("\t".join(self.headers) + "\n")
+    async def __aenter__(self) -> Self:
+        return self
 
-    def write_line(
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        # Ignore the arguments, i.e. no need to handle/suppress exception
+        await self.close()
+
+    @staticmethod
+    async def open(
+        path: Path, /, *, with_index: bool, header: Sequence[str] | None
+    ) -> TsvWriter:
+        """
+        Opens a TSV writer for the specified file.
+
+        If `with_index` is `True`, the first column of each row (which is
+        included in `header`, if provided) will automatically be filled
+        with an integer "index" representing the row number starting from 1.
+
+        Raises a `ValueError` if header is provided but empty.
+        """
+        afp = AIOFile(path, mode="w+", encoding="utf-8")
+        await afp.open()
+
+        writer = Writer(afp)
+
+        # Write header in advance
+        if header is not None:
+            if len(header) == 0:
+                raise ValueError("Header cannot be empty")
+
+            await writer("\t".join(header) + "\n")
+
+        return TsvWriter(
+            afp=afp, writer=writer, with_index=with_index, header=to_tuple(header)
+        )
+
+    async def close(self) -> None:
+        """Closes this TSV writer."""
+        await self._afp.close()
+
+    async def write_line(
         self, fields: Sequence[int | float | str | bool | Enum | None]
     ) -> None:
         """
         Writes a sequence of fields into a single TSV line.
 
         Raises a `ValueError` if the `fields` is empty or
-        if the length of `fields` does not match the headers
+        if the length of `fields` does not match the header
         (which include the index number, if applicable).
         """
-        if self.headers is not None:
-            if len(fields) + int(self.with_index) != len(self.headers):
-                raise ValueError(
-                    "The number of fields must match the number of headers"
-                )
+        if self.header is not None:
+            if len(fields) + int(self.with_index) != len(self.header):
+                raise ValueError("The number of fields must match the number of header")
         else:
             if len(fields) == 0:
                 raise ValueError("Fields must not be empty")
 
         if self.with_index:
-            self.f.write(str(self.line_number) + "\t")
+            await self._writer(str(self.line_number) + "\t")
 
-        self.f.write("\t".join(_to_nullable_field(field) for field in fields) + "\n")
+        await self._writer(
+            "\t".join(_to_nullable_field(field) for field in fields) + "\n"
+        )
 
         self.line_number += 1
 
