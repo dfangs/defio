@@ -1,28 +1,31 @@
 [tool.poetry]
 name = "htap"
 version = "0.1.0"
-description = "MEng Project: Federated Query Routing"
+description = "MEng Project: Instance-Optimized Fusion of AWS Database Services"
 authors = ["dfangs <dfanggohans@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "htap", from = "src" }]       # Needed for src-based layout
+packages = [{ include = "htap", from = "src" }]                                  # Needed for src-based layout
 
 [tool.poetry.dependencies]
 python = "^3.11"
 typing-extensions = "^4.5.0"
 attrs = "^22.2.0"
 immutables = "^0.19"
-numpy = "^1.24.2"
-pandas = "^2.0.0"
-tqdm = "^4.65.0"
-pulumi = "^3.62.0"
-pulumi-aws = "^5.35.0"
+pulumi = "^3.65.1"
+pulumi-aws = "^5.38.0"
 psycopg = { extras = ["binary"], version = "^3.1.8" }
 pglast = "^5.1"
+numpy = "^1.24.3"
+pandas = "^2.0.1"
 pendulum = "^2.1.2"
+humanize = "^4.6.0"
+aiobotocore = "^2.5.0"
+types-aiobotocore = { extras = ["s3"], version = "^2.5.0.post2" }
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.3.0"
+pytest = "^7.3.1"
 pytest-mock = "^3.10.0"
+pytest-asyncio = "^0.21.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -31,6 +34,8 @@ optional = true
 pylint = "^2.17.2"
 black = { extras = ["jupyter"], version = "^23.3.0" }
 isort = "^5.12.0"
+jupyter = "^1.0.0"
+ipykernel = "^6.22.0"
 
 [tool.pytest.ini_options]
 # Put all tests in the specified directory
@@ -66,9 +71,11 @@ good-names = [
     "exc", # Exception
     "at",
     "f",   # File handle
+    "fp",  # File pointer
     "p",   # Probability
     "id",
     "sg",  # Security group
+    "tg",  # asyncio `TaskGroup`
 ]
 
 [tool.pylint.'FORMAT']
