@@ -24,8 +24,8 @@ class AsyncConnection(Protocol[_Row_co]):
 
         # Multiple statements in a transaction
         async with aconn.transaction():
-            aconn.execute(...)
-            aconn.execute(...)
+            await aconn.execute_one(...)
+            await aconn.execute_one(...)
     ```
     """
 
@@ -56,12 +56,25 @@ class AsyncConnection(Protocol[_Row_co]):
     @abstractmethod
     async def execute(self, query: str) -> AsyncIterator[_Row_co]:
         """
-        Executes a single SQL statement outside of a transaction.
+        Executes the given SQL query/command outside of a transaction
+        and yields the resulting tuples.
         """
         # Use `yield` keyword to let the type checker know it is an async generator
         # See https://stackoverflow.com/a/68911014/21451742
         yield  # type: ignore
         raise NotImplementedError
+
+    @final
+    async def execute_one(self, query: str) -> _Row_co | None:
+        """
+        Executes the given SQL query/command outside of a transaction
+        and returns only the first tuple (if it exists).
+
+        This is especially useful for executing statements that
+        we don't expect to return a value (e.g., `CREATE` statements).
+        """
+        async for row in self.execute(query):
+            return row
 
     @abstractmethod
     @asynccontextmanager
@@ -87,7 +100,7 @@ class AsyncClient(Protocol[_Row_co]):
     Usage:
     ```
     client = AsyncClient(...)
-    async with client.connect(...) as aconn:
+    async with await client.connect(...) as aconn:
         ...
     ```
     """
