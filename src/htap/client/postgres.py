@@ -24,6 +24,7 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
 
     @staticmethod
     async def create(
+        *,
         host: str,
         port: int,
         username: str,
@@ -79,6 +80,12 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
     async def execute(self, query: str) -> AsyncIterator[tuple[Any, ...]]:
         # Psycopg essentially only accepts `LiteralString`, so disable type check here
         cursor = await self._aconn.execute(query)  # type: ignore
+
+        # If the last operation did not produce any results,
+        # iterating over the cursor will raise an exception
+        if cursor.rownumber is None:
+            return
+
         async for row in cursor:
             yield row
 
@@ -114,7 +121,7 @@ class PostgresClient(AsyncClient[tuple[Any, ...]]):
         )
 
     @override
-    async def connect(self) -> AsyncConnection:
+    async def connect(self) -> PostgresConnection:
         return await PostgresConnection.create(
             host=self.host,
             port=self.port,
