@@ -13,8 +13,7 @@ from attrs import define
 from typing_extensions import override
 
 from htap.utils.dataset import (
-    NULL_SEQUENCE_SOURCE,
-    NULL_SEQUENCE_TARGET,
+    NULL_SEQUENCE,
     NullableFields,
     TsvReadable,
     TsvReader,
@@ -29,7 +28,7 @@ class TestNullableFields:
         return NullableFields(
             [
                 "untitled",
-                NULL_SEQUENCE_SOURCE,
+                NULL_SEQUENCE,
                 "1",
                 "a,b,c",
             ]
@@ -129,20 +128,28 @@ class TestTsvReader:
         ]
 
     def test_skip_header(self, rows: Sequence[DummyTsvReadable]) -> None:
-        f = StringIO(
+        fp = StringIO(
             "id\tname\n" + "".join([f"{row.id}\t{row.name}\n" for row in rows])
         )
-        reader = TsvReader(f, target_class=DummyTsvReadable, skip_header=True)
 
-        for i, row in enumerate(reader):
-            assert row == rows[i]
+        with TsvReader.open(
+            fp, target_class=DummyTsvReadable, skip_header=True
+        ) as reader:
+            for i, row in enumerate(reader):
+                assert row == rows[i]
 
     def test_not_skip_header(self, rows: Sequence[DummyTsvReadable]) -> None:
-        f = StringIO("".join([f"{row.id}\t{row.name}\n" for row in rows]))
-        reader = TsvReader(f, target_class=DummyTsvReadable, skip_header=False)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            test_file = Path(tmpdirname) / "test"
 
-        for i, row in enumerate(reader):
-            assert row == rows[i]
+            with open(test_file, mode="w+", encoding="utf-8") as f:
+                f.write("".join([f"{row.id}\t{row.name}\n" for row in rows]))
+
+            with TsvReader.open(
+                test_file, target_class=DummyTsvReadable, skip_header=False
+            ) as reader:
+                for i, row in enumerate(reader):
+                    assert row == rows[i]
 
 
 class DummyEnum(Enum):
@@ -157,11 +164,11 @@ class TestTsvWriter:
             pytest.param([0, 1], "0\t1\n", id="int"),
             pytest.param([0.1, 1.2], "0.1\t1.2\n", id="float"),
             pytest.param(["a", "b"], "a\tb\n", id="str"),
-            pytest.param([True, False], "True\tFalse\n", id="bool"),
+            pytest.param([True, False], "TRUE\tFALSE\n", id="bool"),
             pytest.param([DummyEnum.ZERO, DummyEnum.ONE], "1\t2\n", id="Enum"),
             pytest.param(
                 [None, None],
-                f"{NULL_SEQUENCE_TARGET}\t{NULL_SEQUENCE_TARGET}\n",
+                f"{NULL_SEQUENCE}\t{NULL_SEQUENCE}\n",
                 id="None",
             ),
         ],
@@ -169,43 +176,45 @@ class TestTsvWriter:
     def test_plain_valid(
         self, fields: Sequence[int | float | str | bool | Enum | None], expected: str
     ) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=False, headers=None)
+        fp = StringIO()
+        with TsvWriter.open(fp, with_index=False, header=None) as writer:
+            writer.write_line(fields)
 
-        writer.write_line(fields)
-        assert f.getvalue() == expected
+        assert fp.getvalue() == expected
 
     def test_plain_invalid(self) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=False, headers=None)
-
-        with pytest.raises(ValueError):
-            writer.write_line([])
+        fp = StringIO()
+        with TsvWriter.open(fp, with_index=False, header=None) as writer:
+            with pytest.raises(ValueError):
+                writer.write_line([])
 
     def test_with_index_valid(self) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=None)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            test_file = Path(tmpdirname) / "test"
+            expected = ""
 
-        expected = ""
-        for i in range(5):
-            writer.write_line([i, writer.line_number])
-            expected += f"{i + 1}\t{i}\t{i + 1}\n"
+            with TsvWriter.open(test_file, with_index=True, header=None) as writer:
+                for i in range(5):
+                    writer.write_line([i, writer.line_number])
+                    expected += f"{i + 1}\t{i}\t{i + 1}\n"
 
-        assert f.getvalue() == expected
+            with open(test_file, mode="r", encoding="utf-8") as f:
+                assert f.read() == expected
 
     def test_with_index_invalid(self) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=None)
-
-        with pytest.raises(ValueError):
-            writer.write_line([])
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            with TsvWriter.open(
+                Path(tmpdirname) / "test", with_index=True, header=None
+            ) as writer:
+                with pytest.raises(ValueError):
+                    writer.write_line([])
 
     def test_with_headers_valid(self) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=False, headers=["name", "age"])
+        fp = StringIO()
+        with TsvWriter.open(fp, with_index=False, header=["name", "age"]) as writer:
+            writer.write_line(["tim", 23])
 
-        writer.write_line(["tim", 23])
-        assert f.getvalue() == "name\tage\n" + "tim\t23\n"
+        assert fp.getvalue() == "name\tage\n" + "tim\t23\n"
 
     @pytest.mark.parametrize(
         "fields",
@@ -214,22 +223,25 @@ class TestTsvWriter:
     def test_with_headers_invalid(
         self, fields: Sequence[int | float | str | bool | Enum | None]
     ) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=False, headers=["name", "age"])
-
-        with pytest.raises(ValueError):
-            writer.write_line(fields)
+        fp = StringIO()
+        with TsvWriter.open(fp, with_index=False, header=["name", "age"]) as writer:
+            with pytest.raises(ValueError):
+                writer.write_line(fields)
 
     def test_with_index_and_headers_valid(self) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=["id", "name", "age"])
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            test_file = Path(tmpdirname) / "test"
+            expected = "id\tname\tage\n"
 
-        expected = "id\tname\tage\n"
-        for i in range(5):
-            writer.write_line([f"tim_{i}", writer.line_number])
-            expected += f"{i + 1}\ttim_{i}\t{i + 1}\n"
+            with TsvWriter.open(
+                test_file, with_index=True, header=["id", "name", "age"]
+            ) as writer:
+                for i in range(5):
+                    writer.write_line([f"tim_{i}", writer.line_number])
+                    expected += f"{i + 1}\ttim_{i}\t{i + 1}\n"
 
-        assert f.getvalue() == expected
+            with open(test_file, mode="r", encoding="utf-8") as f:
+                assert f.read() == expected
 
     @pytest.mark.parametrize(
         "fields",
@@ -238,11 +250,14 @@ class TestTsvWriter:
     def test_with_index_and_headers_invalid(
         self, fields: Sequence[int | float | str | bool | Enum | None]
     ) -> None:
-        f = StringIO()
-        writer = TsvWriter(f, with_index=True, headers=["id", "name", "age"])
-
-        with pytest.raises(ValueError):
-            writer.write_line(fields)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            with TsvWriter.open(
+                Path(tmpdirname) / "test",
+                with_index=True,
+                header=["id", "name", "age"],
+            ) as writer:
+                with pytest.raises(ValueError):
+                    writer.write_line(fields)
 
 
 def test_gzip() -> None:

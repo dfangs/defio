@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import gzip
 import shutil
 from abc import abstractmethod
 from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
 from pathlib import Path
+from types import TracebackType
 from typing import Final, Generic, Protocol, Self, TextIO, TypeVar, final
 
 import attrs
 from attrs import define
 
-_T = TypeVar("_T")
+from htap.utils.attrs import to_tuple
 
-NULL_SEQUENCE_SOURCE: Final = r"\N"  # Single backslash; used in the source context
-NULL_SEQUENCE_TARGET: Final = r"\\N"  # Double backslash; used in the target context
+NULL_SEQUENCE: Final = r"\N"  # Postgres' default null sequence (also Redshift)
+
+_T = TypeVar("_T")
 
 
 @final
@@ -86,25 +90,63 @@ class TsvReader(Generic[_R]):
     Helper class for reading dataset tuples/records/rows from a TSV file.
     """
 
-    f: TextIO
-    target_class: type[_R] = attrs.field(kw_only=True)
-    skip_header: bool = attrs.field(kw_only=True)
-    _num_columns: int | None = attrs.field(default=None, init=False)
+    _fp: TextIO = attrs.field(alias="fp")
+    _close_later: bool = attrs.field(alias="close_later")
+    target_class: type[_R]
+    skip_header: bool
 
-    def __attrs_post_init__(self) -> None:
-        if self.skip_header:
-            self._num_columns = len(self.f.readline().strip().split("\t"))
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        # Only close the file that we opened
+        if self._close_later:
+            self.close()
+
+    @staticmethod
+    def open(
+        path_or_fp: Path | TextIO, /, *, target_class: type[_R], skip_header: bool
+    ) -> TsvReader:
+        """
+        Opens a TSV reader for the specified file or already-opened text stream.
+        """
+        if isinstance(path_or_fp, Path):
+            fp = open(path_or_fp, mode="r", encoding="utf-8")
+            close_later = True
+        else:
+            fp = path_or_fp
+            close_later = False
+
+        return TsvReader(
+            fp=fp,
+            close_later=close_later,
+            target_class=target_class,
+            skip_header=skip_header,
+        )
+
+    def close(self) -> None:
+        """Closes this TSV reader."""
+        self._fp.close()
 
     def __iter__(self) -> Iterator[_R]:
-        for line in self.f:
+        num_columns: int | None = None
+        if self.skip_header:
+            num_columns = len(self._fp.readline().strip().split("\t"))
+
+        for line in self._fp:
             fields = NullableFields(line.strip().split("\t"))
 
-            if self._num_columns is None:
-                self._num_columns = len(fields)
+            if num_columns is None:
+                num_columns = len(fields)
 
             # Check for consistent number of columns based on the first row
-            # (which could be either the headers or the first data row)
-            assert len(fields) == self._num_columns
+            # (which could be either the header or the first data row)
+            assert len(fields) == num_columns
 
             yield self.target_class.from_tsv(fields)
 
@@ -117,15 +159,62 @@ class TsvWriter:
     individual fields) into a TSV file.
     """
 
-    f: TextIO
-    with_index: bool = attrs.field(kw_only=True)
-    headers: Sequence[str] | None = attrs.field(default=None, kw_only=True)
+    _fp: TextIO = attrs.field(alias="fp")
+    _close_later: bool = attrs.field(alias="close_later")
+    with_index: bool
+    header: Sequence[str] | None
     line_number: int = attrs.field(default=1, init=False)  # Use 1-based indexing
 
-    def __attrs_post_init__(self) -> None:
-        if self.headers is not None:
-            assert len(self.headers) > 0
-            self.f.write("\t".join(self.headers) + "\n")
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        # Only close the file that we opened
+        if self._close_later:
+            self.close()
+
+    @staticmethod
+    def open(
+        path_or_fp: Path | TextIO, /, *, with_index: bool, header: Sequence[str] | None
+    ) -> TsvWriter:
+        """
+        Opens a TSV writer for the specified file or already-opened text stream.
+
+        If `with_index` is `True`, the first column of each row (which is
+        included in `header`, if provided) will automatically be filled
+        with an integer "index" representing the row number starting from 1.
+
+        Raises a `ValueError` if header is provided but empty.
+        """
+        if isinstance(path_or_fp, Path):
+            fp = open(path_or_fp, mode="w+", encoding="utf-8")
+            close_later = True
+        else:
+            fp = path_or_fp
+            close_later = False
+
+        # Write header in advance
+        if header is not None:
+            if len(header) == 0:
+                raise ValueError("Header cannot be empty")
+
+            fp.write("\t".join(header) + "\n")
+
+        return TsvWriter(
+            fp=fp,
+            close_later=close_later,
+            with_index=with_index,
+            header=to_tuple(header),
+        )
+
+    def close(self) -> None:
+        """Closes this TSV writer."""
+        self._fp.close()
 
     def write_line(
         self, fields: Sequence[int | float | str | bool | Enum | None]
@@ -133,23 +222,21 @@ class TsvWriter:
         """
         Writes a sequence of fields into a single TSV line.
 
-        Raises a `ValueError` if the `fields` is empty or
-        if the length of `fields` does not match the headers
-        (which include the index number, if applicable).
+        Raises a `ValueError` if the `fields` is empty or if the length of
+        `fields` does not match the header (which include the index number,
+        if applicable).
         """
-        if self.headers is not None:
-            if len(fields) + int(self.with_index) != len(self.headers):
-                raise ValueError(
-                    "The number of fields must match the number of headers"
-                )
+        if self.header is not None:
+            if len(fields) + int(self.with_index) != len(self.header):
+                raise ValueError("The number of fields must match the number of header")
         else:
             if len(fields) == 0:
                 raise ValueError("Fields must not be empty")
 
         if self.with_index:
-            self.f.write(str(self.line_number) + "\t")
+            self._fp.write(str(self.line_number) + "\t")
 
-        self.f.write("\t".join(_to_nullable_field(field) for field in fields) + "\n")
+        self._fp.write("\t".join(_to_nullable_field(field) for field in fields) + "\n")
 
         self.line_number += 1
 
@@ -166,16 +253,20 @@ def compress_to_gzip(source: Path, target_dir: Path) -> None:
 
 
 def _is_field_null(field: str) -> bool:
-    return field == NULL_SEQUENCE_SOURCE
+    return field == NULL_SEQUENCE
 
 
 def _to_nullable_field(value: int | float | str | Enum | None) -> str:
     if value is None:
-        return NULL_SEQUENCE_TARGET
+        return NULL_SEQUENCE
 
     if isinstance(value, Enum):
         # Use 1-based indexing
         return str(_get_enum_index(value, value.__class__) + 1)
+
+    if isinstance(value, bool):
+        # NOTE: Redshift is case-sensitive with boolean values, unlike Postgres
+        return str(value).upper()
 
     return str(value)
 
