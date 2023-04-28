@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pytest_mock import MockerFixture
 
-from htap.constants import PACKAGE_NAME
+from htap.infra.constants import PROJECT_NAME
 from htap.infra.utils import ComponentMixin, get_az
 
 
@@ -13,7 +13,7 @@ def test_component_mixin() -> None:
 
     assert (
         SomeResource().get_type_name()
-        == f"{PACKAGE_NAME}:{Path(__file__).stem}:{SomeResource.__name__}"
+        == f"{PROJECT_NAME}:{Path(__file__).stem}:{SomeResource.__name__}"
     )
 
 

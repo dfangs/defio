@@ -8,7 +8,7 @@ from typing import Self, TypeAlias, assert_never
 import pulumi
 import pulumi_aws as aws
 
-from htap.constants import ALL_NETWORK
+from htap.infra.constants import ALL_NETWORK
 from htap.infra.helper.vpc import (
     GatewayEndpointService,
     SecurityGroupAbc,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pulumi_aws as aws
 
-from htap.constants import PACKAGE_NAME
+from htap.infra.constants import PROJECT_NAME
 
 
 class ComponentMixin:
@@ -21,7 +21,7 @@ class ComponentMixin:
         Reference: https://www.pulumi.com/docs/intro/concepts/resources/names/#types
         """
         # Use reflection to get the module's filename and class name
-        package_name = PACKAGE_NAME
+        package_name = PROJECT_NAME
         module_name = Path(inspect.getfile(self.__class__)).stem
         class_name = self.__class__.__name__
 

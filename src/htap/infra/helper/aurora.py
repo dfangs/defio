@@ -2,7 +2,7 @@ from collections.abc import Set
 from enum import Enum, StrEnum, auto, unique
 from typing import TypeVar
 
-from htap.constants import DEFAULT_PORT_MYSQL, DEFAULT_PORT_POSTGRESQL
+from htap.infra.constants import DEFAULT_PORT_MYSQL, DEFAULT_PORT_POSTGRESQL
 
 _T = TypeVar("_T")
 

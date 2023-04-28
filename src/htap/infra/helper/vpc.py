@@ -7,7 +7,6 @@ import pulumi
 import pulumi_aws as aws
 from attrs import define
 
-from htap.constants import DEFAULT_PORT_REDSHIFT
 from htap.infra.utils import get_aws_region
 from htap.utils.sentinel import Sentinel
 
