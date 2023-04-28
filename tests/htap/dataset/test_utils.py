@@ -12,7 +12,7 @@ import pytest
 from attrs import define
 from typing_extensions import override
 
-from htap.utils.dataset import (
+from htap.dataset.utils import (
     NULL_SEQUENCE,
     NullableFields,
     TsvReadable,
