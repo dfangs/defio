@@ -33,13 +33,13 @@ from htap.infra.helper.vpc import (
 from htap.infra.project.output import (
     AURORA_KEY_PREFIX,
     AWS_REGION_NAME,
-    DATASETS_S3_BUCKET_NAME,
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
     PASSWORD_KEY_SUFFIX,
     PORT_KEY_SUFFIX,
     REDSHIFT_KEY_PREFIX,
     REDSHIFT_S3_IMPORT_ROLE_ARN,
+    S3_DATASETS_BUCKET_NAME,
     USERNAME_KEY_SUFFIX,
 )
 from htap.infra.utils import get_aws_account_id, get_aws_region
@@ -228,7 +228,7 @@ redshift_clusters = [
 
 # Export values
 pulumi.export(AWS_REGION_NAME, get_aws_region())
-pulumi.export(DATASETS_S3_BUCKET_NAME, htap_bucket.name)
+pulumi.export(S3_DATASETS_BUCKET_NAME, htap_bucket.name)
 pulumi.export(REDSHIFT_S3_IMPORT_ROLE_ARN, redshift_s3_import_role.arn)
 
 for key_prefix, clusters in (
