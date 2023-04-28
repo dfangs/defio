@@ -14,7 +14,7 @@ from htap.sql.schema import (
 )
 
 IMDB_SCHEMA: Final = """
-DROP TABLE IF EXISTS "title";
+DROP TABLE IF EXISTS title;
 CREATE TABLE title (
     id character varying(9) PRIMARY KEY,
     title_type_id integer NOT NULL REFERENCES title_type(id),
@@ -26,26 +26,26 @@ CREATE TABLE title (
     runtime_minutes integer
 );
 
-DROP TABLE IF EXISTS "genre";
+DROP TABLE IF EXISTS genre;
 CREATE TABLE genre (
     id integer PRIMARY KEY,
     name character varying(16) UNIQUE NOT NULL
 );
 
-DROP TABLE IF EXISTS "title_genre";
+DROP TABLE IF EXISTS title_genre;
 CREATE TABLE title_genre (
     title_id character varying(9) REFERENCES title(id),
     genre_id integer REFERENCES genre(id),
     CONSTRAINT title_genre_pkey PRIMARY KEY (title_id, genre_id)
 );
 
-DROP TABLE IF EXISTS "title_type";
+DROP TABLE IF EXISTS title_type;
 CREATE TABLE title_type (
     id integer PRIMARY KEY,
     name character varying(16) UNIQUE NOT NULL
 );
 
-DROP TABLE IF EXISTS "rating";
+DROP TABLE IF EXISTS rating;
 CREATE TABLE rating (
     id integer PRIMARY KEY,
     title_id character varying(9) NOT NULL REFERENCES title(id),
@@ -55,7 +55,7 @@ CREATE TABLE rating (
 """
 
 
-def test_schema_valid() -> None:
+def test_parse_schema_valid() -> None:
     title = Table(
         name="title",
         columns=[
@@ -198,7 +198,7 @@ def test_schema_valid() -> None:
     assert actual == expected
 
 
-def test_schema_invalid() -> None:
+def test_parse_schema_invalid() -> None:
     with pytest.raises(ValueError):
         parser.parse_schema("SELECT title FROM book;", schema_name="invalid")
 
