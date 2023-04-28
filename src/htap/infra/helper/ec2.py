@@ -25,7 +25,14 @@ class AmiArch(StrEnum):
 
 @define(frozen=True)
 class Ami:
-    """Represents an AMI (Amazon Machine Image) for use with EC2 instances."""
+    """
+    Represents an AMI (Amazon Machine Image) for use with EC2 instances.
+
+    NOTE:
+    This class dynamically fetches the latest version of the AMI based on
+    the given specs. This behavior is probably undesirable for production,
+    as subsequent deployments may cause diffs.
+    """
 
     version: AmiVersion
     variant: AmiVariant

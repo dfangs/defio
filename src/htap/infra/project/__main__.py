@@ -3,24 +3,17 @@ from pathlib import Path
 
 import pulumi
 
-from htap.constants import (
-    ALL_NETWORK,
-    AURORA_KEY_PREFIX,
-    DEFAULT_PORT_POSTGRESQL,
-    DEFAULT_PORT_REDSHIFT,
-    HOST_KEY_SUFFIX,
-    INITIAL_DBNAME_KEY_SUFFIX,
-    PASSWORD_KEY_SUFFIX,
-    PORT_KEY_SUFFIX,
-    REDSHIFT_KEY_PREFIX,
-    USERNAME_KEY_SUFFIX,
-)
 from htap.infra.components.aurora import AuroraCluster, AuroraSubnetGroup
 from htap.infra.components.ec2 import Instance, KeyPair
 from htap.infra.components.iam import InstanceProfile, ManagedPolicy, Role
 from htap.infra.components.redshift import RedshiftCluster, RedshiftSubnetGroup
 from htap.infra.components.s3 import Bucket
 from htap.infra.components.vpc import Vpc
+from htap.infra.constants import (
+    ALL_NETWORK,
+    DEFAULT_PORT_POSTGRESQL,
+    DEFAULT_PORT_REDSHIFT,
+)
 from htap.infra.helper.aurora import AuroraEngine, ClusterRoleFeature, DbInstanceClass
 from htap.infra.helper.ec2 import Ami, AmiArch, AmiVariant, AmiVersion
 from htap.infra.helper.iam import (
@@ -36,6 +29,18 @@ from htap.infra.helper.vpc import (
     GatewayEndpointService,
     SecurityGroupEgressRule,
     SecurityGroupIngressRule,
+)
+from htap.infra.project.output import (
+    AURORA_KEY_PREFIX,
+    AWS_REGION_NAME,
+    DATASETS_S3_BUCKET_NAME,
+    HOST_KEY_SUFFIX,
+    INITIAL_DBNAME_KEY_SUFFIX,
+    PASSWORD_KEY_SUFFIX,
+    PORT_KEY_SUFFIX,
+    REDSHIFT_KEY_PREFIX,
+    REDSHIFT_S3_IMPORT_ROLE_ARN,
+    USERNAME_KEY_SUFFIX,
 )
 from htap.infra.utils import get_aws_account_id, get_aws_region
 
@@ -136,24 +141,41 @@ htap_s3_import_policy = ManagedPolicy(
     ),
 )
 
-htap_s3_import_role = Role(
-    "htap-s3-import-role",
+aurora_s3_import_role = Role(
+    "htap-aurora-s3-import-role",
     trust_policy=PolicyDocument(
         Statement=[
             Statement(
                 Effect=StatementEffect.ALLOW,
-                Principal=Principal(
-                    Service=[
-                        "rds.amazonaws.com",
-                        "redshift.amazonaws.com",
-                    ]
-                ),
+                Principal=Principal(Service="rds.amazonaws.com"),
                 Action="sts:AssumeRole",
                 Condition=Condition(
                     StringLike={
                         "aws:SourceArn": [
                             f"arn:aws:rds:{get_aws_region()}:{get_aws_account_id()}:cluster:htap-*",
-                            f"arn:aws:redshift:{get_aws_region()}:{get_aws_account_id()}:cluster:htap-*",
+                        ]
+                    }
+                ),
+            )
+        ]
+    ),
+    managed_policies=[
+        htap_s3_import_policy,
+    ],
+)
+
+redshift_s3_import_role = Role(
+    "htap-redshift-s3-import-role",
+    trust_policy=PolicyDocument(
+        Statement=[
+            Statement(
+                Effect=StatementEffect.ALLOW,
+                Principal=Principal(Service="redshift.amazonaws.com"),
+                Action="sts:AssumeRole",
+                Condition=Condition(
+                    StringLike={
+                        "sts:ExternalId": [
+                            f"arn:aws:redshift:{get_aws_region()}:{get_aws_account_id()}:dbuser:htap-*/*",
                         ]
                     }
                 ),
@@ -180,7 +202,7 @@ aurora_clusters = [
         publicly_accessible=False,
         initial_database_name="htap",
         security_groups=[aurora_security_group],
-        iam_roles={htap_s3_import_role: ClusterRoleFeature.S3_IMPORT},
+        iam_roles={aurora_s3_import_role: ClusterRoleFeature.S3_IMPORT},
         apply_immediately=True,
     )
 ]
@@ -199,12 +221,16 @@ redshift_clusters = [
         publicly_accessible=False,
         initial_database_name="htap",
         security_groups=[redshift_security_group],
-        iam_roles=[htap_s3_import_role],
+        iam_roles=[redshift_s3_import_role],
         apply_immediately=True,
     )
 ]
 
 # Export values
+pulumi.export(AWS_REGION_NAME, get_aws_region())
+pulumi.export(DATASETS_S3_BUCKET_NAME, htap_bucket.name)
+pulumi.export(REDSHIFT_S3_IMPORT_ROLE_ARN, redshift_s3_import_role.arn)
+
 for key_prefix, clusters in (
     (AURORA_KEY_PREFIX, aurora_clusters),
     (REDSHIFT_KEY_PREFIX, redshift_clusters),

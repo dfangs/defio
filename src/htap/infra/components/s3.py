@@ -73,14 +73,17 @@ class Bucket(pulumi.ComponentResource, ComponentMixin):
                 opts=pulumi.ResourceOptions(parent=self),
             )
 
-        self.register_outputs({"arn": self.get_arn()})
+        self.register_outputs({"arn": self.arn, "name": self.name})
 
     @property
     def arn(self) -> pulumi.Output[str]:
-        """
-        Returns the ARN of this S3 bucket.
-        """
+        """Returns the ARN of this S3 bucket."""
         return self._bucket.arn
+
+    @property
+    def name(self) -> pulumi.Output[str]:
+        """Returns the name of this S3 bucket."""
+        return self._bucket.bucket
 
     def get_arn(self) -> str:
         """
