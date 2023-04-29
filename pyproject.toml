@@ -107,4 +107,3 @@ line-length = 88 # Default value
 [tool.isort]
 # Reference: https://pycqa.github.io/isort/docs/configuration/black_compatibility.html
 profile = "black"
-extend_skip_glob = ["**/*_pb2.py", "**/*_pb2.pyi", "**/*_pb2_grpc.py"]
