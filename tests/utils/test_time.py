@@ -1,4 +1,5 @@
 import time
+from typing import Final
 from unittest.mock import MagicMock
 
 import pendulum
@@ -7,13 +8,13 @@ from pytest_mock import MockerFixture
 
 from htap.utils.time import TimeMeasurement, measure_time
 
-CURRENT_TIME = pendulum.datetime(year=2023, month=3, day=12)
-SECONDS_TO_MICROSECONDS = 1_000_000
+CURRENT_TIME: Final = pendulum.datetime(year=2023, month=3, day=12)
+SECONDS_TO_MICROSECONDS: Final = 1_000_000
 
 
 @pytest.fixture(name="_mock_current_time")
-def fixture_mock_current_time(mocker: MockerFixture) -> None:
-    mocker.patch("htap.utils.time.get_current_time", return_value=CURRENT_TIME)
+def fixture_mock_current_time(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch("htap.utils.time.get_current_time", return_value=CURRENT_TIME)
 
 
 @pytest.fixture(name="mock_timer")
@@ -22,11 +23,13 @@ def fixture_mock_timer(mocker: MockerFixture) -> MagicMock:
 
 
 class TestTimeMeasurement:
-    def test_start_time(self, _mock_current_time) -> None:
+    def test_start_time(self, _mock_current_time: MagicMock) -> None:
         measurement = TimeMeasurement.start()
         assert measurement.start_time == CURRENT_TIME
 
-    def test_end_time(self, _mock_current_time, mock_timer: MagicMock) -> None:
+    def test_end_time(
+        self, _mock_current_time: MagicMock, mock_timer: MagicMock
+    ) -> None:
         measurement = TimeMeasurement.start(timer=mock_timer)
         start_time_benchmark = mock_timer.spy_return
 
@@ -68,7 +71,7 @@ class TestTimeMeasurement:
 
 
 class TestMeasureTime:
-    def test_ok(self, _mock_current_time, mock_timer: MagicMock) -> None:
+    def test_ok(self, _mock_current_time: MagicMock, mock_timer: MagicMock) -> None:
         with measure_time(timer=mock_timer) as measurement:
             # `timer()` should be called once before entering the context...
             start_time_benchmark = mock_timer.spy_return

@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import MagicMock, call
 
 import pytest
 from pytest_mock import MockerFixture
@@ -7,19 +7,18 @@ from htap.utils.logging import log_around
 
 
 @pytest.fixture(name="mock_print")
-def fixture_mock_print(mocker: MockerFixture) -> Mock:
+def fixture_mock_print(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("htap.utils.logging.print")
 
 
-def test_log_around_true(mock_print: Mock) -> None:
+def test_log_around_true(mock_print: MagicMock) -> None:
     with log_around(True, start=(start := "start"), end=lambda: end):
-        mock_print.assert_called_once_with(start)
         end = "end"  # Late binding
 
-    mock_print.assert_called_with(end)
+    mock_print.assert_has_calls([call(start), call(end)])
 
 
-def test_log_around_false(mock_print: Mock) -> None:
+def test_log_around_false(mock_print: MagicMock) -> None:
     with log_around(False, start="start", end="end"):
         ...
 
