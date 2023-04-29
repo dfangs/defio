@@ -1,6 +1,0 @@
-name: htap
-runtime:
-  name: python
-description: Full-stack AWS infrastructure for HTAP project
-config:
-  aws:region: us-east-1

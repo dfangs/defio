@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 import pytest
 from attrs import define
 
-from htap.utils.graph import DirectedGraph, UndirectedGraph
+from defio.utils.graph import DirectedGraph, UndirectedGraph
 
 T = TypeVar("T")
 

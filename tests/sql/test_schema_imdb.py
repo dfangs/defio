@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from htap.sql.schema import (
+from defio.sql.schema import (
     Column,
     ColumnConstraint,
     DataType,

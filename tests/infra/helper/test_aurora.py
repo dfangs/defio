@@ -2,7 +2,7 @@ from collections.abc import Set
 
 import pytest
 
-from htap.infra.helper.aurora import (
+from defio.infra.helper.aurora import (
     AuroraEngine,
     AuroraLogType,
     DbEngineType,

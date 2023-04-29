@@ -7,9 +7,9 @@ from typing import Final
 
 import pytest
 
-from htap.dataset import Dataset, DatasetLoadConfig
-from htap.sql.parser import parse_schema
-from htap.sql.schema import Schema
+from defio.dataset import Dataset, DatasetLoadConfig
+from defio.sql.parser import parse_schema
+from defio.sql.schema import Schema
 
 LIBRARY_SCHEMA: Final = """
 DROP TABLE IF EXISTS author;

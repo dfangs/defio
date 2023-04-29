@@ -1,0 +1,5 @@
+config:
+  defio:db-username: defio
+  defio:db-password:
+    secure: AAABAEPqPS/MaBKgiuCZCLs3qNF5lN0YNXyf5RiZ9OBpcljeirkekXf5
+  defio:public-key-path: /Users/dfangs/.ssh/id_ed25519.pub

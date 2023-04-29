@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "htap"
+name = "defio"
 version = "0.1.0"
-description = "MEng Project: Instance-Optimized Fusion of AWS Database Services"
+description = "Defio: Instance-Optimized Fusion of AWS Database Services"
 authors = ["dfangs <dfanggohans@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "htap", from = "src" }]                                  # Needed for src-based layout
+packages = [{ include = "defio", from = "src" }]                          # Needed for src-based layout
 
 [tool.poetry.dependencies]
 python = "^3.11"

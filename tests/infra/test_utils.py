@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
-from htap.infra.constants import PROJECT_NAME
-from htap.infra.utils import ComponentMixin, get_az
+from defio.infra.constants import PROJECT_NAME
+from defio.infra.utils import ComponentMixin, get_az
 
 
 def test_component_mixin() -> None:
@@ -24,7 +24,7 @@ def fixture_mock_get_available_azs(mocker: MockerFixture) -> MagicMock:
     # Mocking the whole `pulumi_aws` would be slower and rather unnecessary
     # (but as a consequence, we don't test the other helper functions)
     return mocker.patch(
-        "htap.infra.utils.get_available_azs",
+        "defio.infra.utils.get_available_azs",
         return_value=["us-east-1a", "us-east-1b"],
     )
 

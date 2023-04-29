@@ -3,12 +3,12 @@ from unittest.mock import MagicMock, call
 import pytest
 from pytest_mock import MockerFixture
 
-from htap.utils.logging import log_around
+from defio.utils.logging import log_around
 
 
 @pytest.fixture(name="mock_print")
 def fixture_mock_print(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("htap.utils.logging.print")
+    return mocker.patch("defio.utils.logging.print")
 
 
 def test_log_around_true(mock_print: MagicMock) -> None:

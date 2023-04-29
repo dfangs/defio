@@ -4,14 +4,14 @@ from typing import AsyncIterator, final
 
 from typing_extensions import override
 
-from htap.client import AsyncClient
-from htap.utils.time import get_current_time
-from htap.workload import Workload
-from htap.workload.query import Query
-from htap.workload.reporter import PrintReporter
-from htap.workload.runner import run_workload
-from htap.workload.schedule import Once, Repeat
-from htap.workload.user import User
+from defio.client import AsyncClient
+from defio.utils.time import get_current_time
+from defio.workload import Workload
+from defio.workload.query import Query
+from defio.workload.reporter import PrintReporter
+from defio.workload.runner import run_workload
+from defio.workload.schedule import Once, Repeat
+from defio.workload.user import User
 
 
 @final

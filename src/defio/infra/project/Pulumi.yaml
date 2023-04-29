@@ -1,0 +1,6 @@
+name: defio
+runtime:
+  name: python
+description: Full-stack AWS infrastructure for Defio project
+config:
+  aws:region: us-east-1

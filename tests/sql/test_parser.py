@@ -3,8 +3,8 @@ from typing import Final
 import pglast
 import pytest
 
-from htap.sql import parser
-from htap.sql.schema import (
+from defio.sql import parser
+from defio.sql.schema import (
     Column,
     ColumnConstraint,
     DataType,

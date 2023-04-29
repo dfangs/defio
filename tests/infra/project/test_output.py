@@ -6,7 +6,7 @@ from pulumi import automation as auto
 from pulumi.automation import OutputValue, Stack
 from pytest_mock import MockerFixture
 
-from htap.infra.project.output import PULUMI_PROJECT_PATH, PulumiStackOutputs
+from defio.infra.project.output import PULUMI_PROJECT_PATH, PulumiStackOutputs
 
 OUTPUT_MAP: Final = {
     "host": "localhost",
@@ -31,7 +31,7 @@ class TestPulumiStackOutputs:
         self, mocker: MockerFixture, _mock_stack: Mock
     ) -> MagicMock:
         return mocker.patch(
-            "htap.infra.project.output.auto.select_stack",
+            "defio.infra.project.output.auto.select_stack",
             return_value=_mock_stack,
         )
 
@@ -59,7 +59,7 @@ class TestPulumiStackOutputs:
         # Only patch `select_stack()` and not the whole `auto` module
         # Otherwise, it will inadvertently patch the exception class as well
         mock_select_stack = mocker.patch(
-            "htap.infra.project.output.auto.select_stack",
+            "defio.infra.project.output.auto.select_stack",
             side_effect=auto.errors.StackNotFoundError(MagicMock()),
         )
 

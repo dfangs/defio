@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from htap.infra.helper.iam import (
+from defio.infra.helper.iam import (
     WILDCARD,
     Condition,
     PolicyDocument,
@@ -100,8 +100,8 @@ from htap.infra.helper.iam import (
                             "s3:ListBucket",
                         ],
                         Resource=[
-                            "arn:aws:s3:::htap-datasets",
-                            "arn:aws:s3:::htap-datasets/*",
+                            "arn:aws:s3:::defio-datasets",
+                            "arn:aws:s3:::defio-datasets/*",
                         ],
                     ),
                 ]
@@ -117,8 +117,8 @@ from htap.infra.helper.iam import (
                             "s3:ListBucket",
                         ],
                         "Resource": [
-                            "arn:aws:s3:::htap-datasets",
-                            "arn:aws:s3:::htap-datasets/*",
+                            "arn:aws:s3:::defio-datasets",
+                            "arn:aws:s3:::defio-datasets/*",
                         ],
                     }
                 ],
@@ -134,7 +134,7 @@ from htap.infra.helper.iam import (
                         Principal=Principal(Service="rds.amazonaws.com"),
                         Condition=Condition(
                             StringLike={
-                                "aws:SourceArn": "arn:aws:rds:us-east-1:0123456789:cluster:htap*",
+                                "aws:SourceArn": "arn:aws:rds:us-east-1:0123456789:cluster:defio*",
                             }
                         ),
                     ),
@@ -149,7 +149,7 @@ from htap.infra.helper.iam import (
                         "Principal": {"Service": "rds.amazonaws.com"},
                         "Condition": {
                             "StringLike": {
-                                "aws:SourceArn": "arn:aws:rds:us-east-1:0123456789:cluster:htap*",
+                                "aws:SourceArn": "arn:aws:rds:us-east-1:0123456789:cluster:defio*",
                             }
                         },
                     }

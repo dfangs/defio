@@ -1,6 +1,6 @@
 import pytest
 
-from htap.infra.helper.redshift import RedshiftNodeType
+from defio.infra.helper.redshift import RedshiftNodeType
 
 
 @pytest.mark.parametrize(

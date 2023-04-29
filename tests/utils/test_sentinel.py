@@ -1,6 +1,6 @@
 import pytest
 
-from htap.utils.sentinel import Sentinel
+from defio.utils.sentinel import Sentinel
 
 
 class DummySentinel(Sentinel):

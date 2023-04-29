@@ -3,7 +3,7 @@ from typing import TypeVar
 import pytest
 from immutables import Map
 
-from htap.utils.attrs import to_map, to_tuple
+from defio.utils.attrs import to_map, to_tuple
 
 T = TypeVar("T")
 U = TypeVar("U")

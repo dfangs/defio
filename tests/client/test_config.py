@@ -6,8 +6,8 @@ import pytest
 from pytest_mock import MockerFixture
 from typing_extensions import override
 
-from htap.client.config import PulumiDbConfig, SimpleDbConfig
-from htap.infra.project.output import (
+from defio.client.config import PulumiDbConfig, SimpleDbConfig
+from defio.infra.project.output import (
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
     PASSWORD_KEY_SUFFIX,
@@ -90,7 +90,7 @@ def test_pulumi_db_config(mocker: MockerFixture) -> None:
         spec=PulumiStackOutputs, get=Mock(return_value=MagicMock())
     )
     mock_stack_output_constructor = mocker.patch(
-        "htap.client.config.PulumiStackOutputs", return_value=mock_stack_outputs
+        "defio.client.config.PulumiStackOutputs", return_value=mock_stack_outputs
     )
 
     config = SimplePulumiDbConfig(

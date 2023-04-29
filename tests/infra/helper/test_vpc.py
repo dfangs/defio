@@ -3,7 +3,7 @@ import ipaddress
 from pulumi_aws.ec2 import ProtocolType
 from pytest_mock import MockerFixture
 
-from htap.infra.helper.vpc import (
+from defio.infra.helper.vpc import (
     SELF_TARGET,
     SecurityGroupAbc,
     SecurityGroupEgressRule,

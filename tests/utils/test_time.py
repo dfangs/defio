@@ -6,7 +6,7 @@ import pendulum
 import pytest
 from pytest_mock import MockerFixture
 
-from htap.utils.time import TimeMeasurement, measure_time
+from defio.utils.time import TimeMeasurement, measure_time
 
 CURRENT_TIME: Final = pendulum.datetime(year=2023, month=3, day=12)
 SECONDS_TO_MICROSECONDS: Final = 1_000_000
@@ -14,7 +14,7 @@ SECONDS_TO_MICROSECONDS: Final = 1_000_000
 
 @pytest.fixture(name="_mock_current_time")
 def fixture_mock_current_time(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("htap.utils.time.get_current_time", return_value=CURRENT_TIME)
+    return mocker.patch("defio.utils.time.get_current_time", return_value=CURRENT_TIME)
 
 
 @pytest.fixture(name="mock_timer")
