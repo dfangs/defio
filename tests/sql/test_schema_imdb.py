@@ -153,7 +153,6 @@ def fixture_imdb(
     md_director_id: Column,
 ) -> Schema:
     return Schema(
-        name="imdb",
         tables=(tables := [crew, movie, director, movie_director]),
         relationships=RelationshipGraph(
             tables=tables,
@@ -170,7 +169,6 @@ def fixture_imdb(
 @pytest.fixture(name="imdb_dict")
 def fixture_imdb_dict() -> dict[str, Any]:
     return {
-        "name": "imdb",
         "tables": [
             {
                 "name": "crew",

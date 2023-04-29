@@ -56,7 +56,7 @@ class Dataset:
         """
         try:
             with open(self.schema_path, mode="r", encoding="utf-8") as f:
-                return parse_schema(f.read(), schema_name=self.name)
+                return parse_schema(f.read())
         except OSError as exc:
             raise ValueError("Schema file does not exist") from exc
         except ValueError as exc:

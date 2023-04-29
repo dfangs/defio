@@ -17,7 +17,6 @@ from htap.utils.graph import DirectedGraph
 class Schema:
     """Schema of a dataset."""
 
-    name: str
     tables: Sequence[Table] = field(converter=to_tuple)
     relationships: RelationshipGraph
 
@@ -36,7 +35,6 @@ class Schema:
     def from_dict(data: dict[str, Any]) -> Schema:
         """Converts the given dict/JSON representation into a schema."""
         return Schema(
-            name=data["name"],
             tables=(tables := [Table.from_dict(table) for table in data["tables"]]),
             relationships=RelationshipGraph.from_list(data["relationships"], tables),
         )
@@ -44,7 +42,6 @@ class Schema:
     def to_dict(self) -> dict[str, Any]:
         """Converts this schema into its dict/JSON representation."""
         return {
-            "name": self.name,
             "tables": [table.to_dict() for table in self.tables],
             "relationships": self.relationships.to_list(),
         }

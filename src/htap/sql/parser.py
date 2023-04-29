@@ -70,7 +70,7 @@ def parse_sql(sql: str) -> Sequence[Statement]:
         raise ValueError("Error when parsing input SQL") from exc
 
 
-def parse_schema(sql: str, *, schema_name: str) -> Schema:
+def parse_schema(sql: str) -> Schema:
     """
     Parses a SQL string into a schema definition, i.e. SQL statements of
     table definitions (and optionally, drop statements).
@@ -105,7 +105,6 @@ def parse_schema(sql: str, *, schema_name: str) -> Schema:
     ]
 
     return Schema(
-        name=schema_name,
         tables=tables,
         relationships=RelationshipGraph(tables=tables, relationships=relationships),
     )

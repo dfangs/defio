@@ -160,9 +160,8 @@ def test_parse_schema_valid() -> None:
         ],
     )
 
-    actual = parser.parse_schema(IMDB_SCHEMA, schema_name="imdb")
+    actual = parser.parse_schema(IMDB_SCHEMA)
     expected = Schema(
-        name="imdb",
         tables=(tables := [title, genre, title_genre, title_type, rating]),
         relationships=RelationshipGraph(
             tables=tables,
@@ -200,7 +199,7 @@ def test_parse_schema_valid() -> None:
 
 def test_parse_schema_invalid() -> None:
     with pytest.raises(ValueError):
-        parser.parse_schema("SELECT title FROM book;", schema_name="invalid")
+        parser.parse_schema("SELECT title FROM book;")
 
 
 def _test_parse_single_statement(sql: str) -> None:

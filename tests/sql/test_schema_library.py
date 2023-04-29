@@ -96,7 +96,6 @@ def fixture_library(
     book: Table, book_author_id: Column, author: Table, author_id: Column
 ) -> Schema:
     return Schema(
-        name="library",
         tables=(tables := [author, book]),
         relationships=RelationshipGraph(
             tables=tables,
@@ -108,7 +107,6 @@ def fixture_library(
 @pytest.fixture(name="library_dict")
 def fixture_library_dict() -> dict[str, Any]:
     return {
-        "name": "library",
         "tables": [
             {
                 "name": "author",

@@ -114,7 +114,7 @@ def create_invalid_dataset() -> Iterator[Dataset]:
 
 @pytest.fixture(name="schema")
 def fixture_schema() -> Schema:
-    return parse_schema(LIBRARY_SCHEMA, schema_name="library")
+    return parse_schema(LIBRARY_SCHEMA)
 
 
 class TestDataset:
