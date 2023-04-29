@@ -61,6 +61,7 @@ class DropStatement(Statement):
     """Represents a SQL `DROP` statement."""
 
     remove_type: DropRemoveType
+    is_cascade: bool
     is_missing_ok: bool
     objects: Sequence[str] = field(converter=to_tuple)
 

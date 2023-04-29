@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Any, final
+from typing import Any
 
 import pytest
 from attrs import define
@@ -106,7 +106,6 @@ class TestNullableFields:
             fields.map(index, lambda f: f)
 
 
-@final
 @define(frozen=True)
 class DummyTsvReadable(TsvReadable):
     id: int

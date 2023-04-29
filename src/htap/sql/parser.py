@@ -60,6 +60,12 @@ def parse_sql(sql: str) -> Sequence[Statement]:
     Some of these are as follows:
     - `count(*)`
     - Aliases in SELECT target list (e.g., `SELECT price AS p FROM ...`)
+
+    However, for some DDL statements, the parser may still return
+    `Statement` objects that do not fully capture the semantics
+    of the original SQL statements.
+
+    E.g., `CONSTRAINT` inside a `CREATE` statement will be ignored.
     """
     try:
         raw_statements = pglast.parse_sql(sql)
@@ -139,6 +145,10 @@ def _parse_statement(node: StatementAst) -> Statement:
             return DropStatement(
                 remove_type=_parse_drop_remove_type(
                     cast(enums.parsenodes.ObjectType, node.removeType)
+                ),
+                is_cascade=(
+                    cast(enums.parsenodes.DropBehavior, node.behavior)
+                    is enums.parsenodes.DropBehavior.DROP_CASCADE
                 ),
                 is_missing_ok=cast(bool, node.missing_ok),
                 objects=[
