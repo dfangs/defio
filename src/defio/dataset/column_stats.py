@@ -197,7 +197,7 @@ class CategoricalColumnStats(ColumnStats, Generic[_T]):
     """
     Column statistics for numerical values.
 
-    Supported data types: `Integer`, `String`.
+    Supported data types: `Integer`, `String`, `Boolean`.
 
     Reasonable operations: `=`, `!=`, `IN`.
     """
@@ -219,13 +219,16 @@ class CategoricalColumnStats(ColumnStats, Generic[_T]):
     @override
     def _init_from_dict(self, data: dict[str, Any]) -> None:
         super()._init_from_dict(data)
-        self.most_frequent_values = data["most_frequent_values"]
+        self.most_frequent_values = dict(data["most_frequent_values"])
 
     @override
     def to_dict(self) -> dict[str, Any]:
+        print(self.most_frequent_values)
         return {
             **super().to_dict(),
-            "most_frequent_values": dict(self.most_frequent_values),
+            # Convert to list instead of dict, since `_T` can be non-string values
+            # but JSON keys must be strings
+            "most_frequent_values": list(self.most_frequent_values.items()),
         }
 
     @property
