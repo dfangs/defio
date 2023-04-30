@@ -1,4 +1,4 @@
-from collections.abc import Set
+from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
 from typing import Literal, TypeAlias, final
@@ -38,8 +38,9 @@ class Dataset:
     """
 
     name: str
-    schema_path: Path
-    tables_dir_path: Path
+    directory: Path
+    schema_filename: str
+    tables_dirname: str
     load_config: DatasetLoadConfig
 
     @cached_property
@@ -55,20 +56,24 @@ class Dataset:
         or if the file cannot be parsed as a valid schema.
         """
         try:
-            with open(self.schema_path, mode="r", encoding="utf-8") as f:
+            schema_path = self.directory / self.schema_filename
+            with open(schema_path, mode="r", encoding="utf-8") as f:
                 return parse_schema(f.read())
+
         except OSError as exc:
             raise ValueError("Schema file does not exist") from exc
+
         except ValueError as exc:
             raise ValueError("Schema cannot be parsed") from exc
 
     @cached_property
-    def tables(self) -> Set[Table]:
+    def tables(self) -> Sequence[Table]:
         """Returns the set of tables in this dataset."""
-        return frozenset(self.schema.tables)
+        return self.schema.tables
 
     def _table_path(self, table: Table) -> Path:
-        for path in self.tables_dir_path.iterdir():
+        tables_dirpath = self.directory / self.tables_dirname
+        for path in tables_dirpath.iterdir():
             # This allows for both uncompressed and compressed files
             table_name = path.name.partition(".")[0]
             if table.name == table_name:
