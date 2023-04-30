@@ -43,6 +43,16 @@ class Dataset:
     tables_dirname: str
     load_config: DatasetLoadConfig
 
+    @property
+    def schema_path(self) -> Path:
+        """Returns the path to this dataset's schema file."""
+        return self.directory / self.schema_filename
+
+    @property
+    def tables_dirpath(self) -> Path:
+        """Returns the path to the directory containing this dataset's tables."""
+        return self.directory / self.tables_dirname
+
     @cached_property
     def schema(self) -> Schema:
         """
@@ -56,8 +66,7 @@ class Dataset:
         or if the file cannot be parsed as a valid schema.
         """
         try:
-            schema_path = self.directory / self.schema_filename
-            with open(schema_path, mode="r", encoding="utf-8") as f:
+            with open(self.schema_path, mode="r", encoding="utf-8") as f:
                 return parse_schema(f.read())
 
         except OSError as exc:
@@ -66,14 +75,13 @@ class Dataset:
         except ValueError as exc:
             raise ValueError("Schema cannot be parsed") from exc
 
-    @cached_property
+    @property
     def tables(self) -> Sequence[Table]:
         """Returns the set of tables in this dataset."""
         return self.schema.tables
 
     def _table_path(self, table: Table) -> Path:
-        tables_dirpath = self.directory / self.tables_dirname
-        for path in tables_dirpath.iterdir():
+        for path in self.tables_dirpath.iterdir():
             # This allows for both uncompressed and compressed files
             table_name = path.name.partition(".")[0]
             if table.name == table_name:
