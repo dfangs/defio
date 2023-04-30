@@ -216,6 +216,7 @@ class ColumnConstraint:
     """
 
     is_primary_key: bool = False
+    is_foreign_key: bool = False
     is_unique: bool = False
     is_not_null: bool = False
     max_char_length: int | None = None
@@ -231,14 +232,14 @@ class Column:
     constraint: ColumnConstraint = ColumnConstraint()
 
     @property
-    def is_unique(self) -> bool:
-        """Returns whether this column only contains unique values."""
-        return self.constraint.is_unique or self.constraint.is_primary_key
+    def is_primary_key(self) -> bool:
+        """Returns whether this column has a primary key constraint."""
+        return self.constraint.is_primary_key
 
     @property
-    def is_not_null(self) -> bool:
-        """Returns whether this column only contains non-null values."""
-        return self.constraint.is_not_null or self.constraint.is_primary_key
+    def is_foreign_key(self) -> bool:
+        """Returns whether this column has a foreign key constraint."""
+        return self.constraint.is_foreign_key
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> Column:
@@ -248,6 +249,7 @@ class Column:
             dtype=DataType.from_str(data["dtype"]),
             constraint=ColumnConstraint(
                 is_primary_key=data["is_primary_key"],
+                is_foreign_key=data["is_foreign_key"],
                 is_unique=data["is_unique"],
                 is_not_null=data["is_not_null"],
                 max_char_length=data["max_char_length"],
@@ -260,6 +262,7 @@ class Column:
             "name": self.name,
             "dtype": str(self.dtype),
             "is_primary_key": self.constraint.is_primary_key,
+            "is_foreign_key": self.constraint.is_foreign_key,
             "is_unique": self.constraint.is_unique,
             "is_not_null": self.constraint.is_not_null,
             "max_char_length": self.constraint.max_char_length,

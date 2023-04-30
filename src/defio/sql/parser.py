@@ -185,14 +185,14 @@ def _parse_statement(node: StatementAst) -> Statement:
 
 
 def _parse_column_def(node: ast.ColumnDef) -> Column:
-    constraints = {
-        cast(enums.parsenodes.ConstrType, constraint.contype)
-        for constraint in (
-            cast(tuple[ast.Constraint, ...], node.constraints)
-            if node.constraints is not None
-            else ()
-        )
-    }
+    constraints = (
+        {
+            cast(enums.parsenodes.ConstrType, constraint.contype)
+            for constraint in (cast(tuple[ast.Constraint, ...], node.constraints))
+        }
+        if node.constraints is not None
+        else set()
+    )
     type_data = cast(ast.TypeName, node.typeName)
 
     return Column(
@@ -202,6 +202,7 @@ def _parse_column_def(node: ast.ColumnDef) -> Column:
         ),
         constraint=ColumnConstraint(
             is_primary_key=enums.parsenodes.ConstrType.CONSTR_PRIMARY in constraints,
+            is_foreign_key=enums.parsenodes.ConstrType.CONSTR_FOREIGN in constraints,
             is_not_null=enums.parsenodes.ConstrType.CONSTR_NOTNULL in constraints,
             is_unique=enums.parsenodes.ConstrType.CONSTR_UNIQUE in constraints,
             max_char_length=(

@@ -67,7 +67,7 @@ def test_parse_schema_valid() -> None:
             Column(
                 name="title_type_id",
                 dtype=DataType.INTEGER,
-                constraint=ColumnConstraint(is_not_null=True),
+                constraint=ColumnConstraint(is_foreign_key=True, is_not_null=True),
             ),
             Column(
                 name="primary_title",
@@ -112,9 +112,15 @@ def test_parse_schema_valid() -> None:
             Column(
                 name="title_id",
                 dtype=DataType.STRING,
-                constraint=ColumnConstraint(max_char_length=9),
+                constraint=ColumnConstraint(is_foreign_key=True, max_char_length=9),
             ),
-            Column(name="genre_id", dtype=DataType.INTEGER),
+            Column(
+                name="genre_id",
+                dtype=DataType.INTEGER,
+                constraint=ColumnConstraint(
+                    is_foreign_key=True,
+                ),
+            ),
         ],
     )
     title_type = Table(
@@ -145,7 +151,9 @@ def test_parse_schema_valid() -> None:
             Column(
                 name="title_id",
                 dtype=DataType.STRING,
-                constraint=ColumnConstraint(is_not_null=True, max_char_length=9),
+                constraint=ColumnConstraint(
+                    is_foreign_key=True, is_not_null=True, max_char_length=9
+                ),
             ),
             Column(
                 name="average_rating",

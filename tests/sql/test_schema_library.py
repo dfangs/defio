@@ -77,7 +77,7 @@ def fixture_book_author_id() -> Column:
     return Column(
         name="author_id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(is_not_null=True),
+        constraint=ColumnConstraint(is_foreign_key=True, is_not_null=True),
     )
 
 
@@ -115,6 +115,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "id",
                         "dtype": "integer",
                         "is_primary_key": True,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -123,6 +124,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "name",
                         "dtype": "character varying",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": 64,
@@ -136,6 +138,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "id",
                         "dtype": "integer",
                         "is_primary_key": True,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -144,6 +147,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "title",
                         "dtype": "character varying",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": True,
                         "is_not_null": False,
                         "max_char_length": 256,
@@ -152,6 +156,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "price",
                         "dtype": "real",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -160,6 +165,7 @@ def fixture_library_dict() -> dict[str, Any]:
                         "name": "author_id",
                         "dtype": "integer",
                         "is_primary_key": False,
+                        "is_foreign_key": True,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": None,
@@ -285,19 +291,19 @@ class TestTable:
 
 class TestColumn:
     @pytest.mark.parametrize(
-        "column_index, is_unique, is_not_null",
+        "column_index, is_primary_key, is_foreign_key",
         [
-            (0, True, True),
-            (1, True, False),
+            (0, True, False),
+            (1, False, False),
             (2, False, False),
             (3, False, True),
         ],
     )
     def test_constraints(
-        self, book: Table, column_index: int, is_unique: bool, is_not_null: bool
+        self, book: Table, column_index: int, is_primary_key: bool, is_foreign_key: bool
     ) -> None:
-        assert book.columns[column_index].is_unique == is_unique
-        assert book.columns[column_index].is_not_null == is_not_null
+        assert book.columns[column_index].is_primary_key == is_primary_key
+        assert book.columns[column_index].is_foreign_key == is_foreign_key
 
     def test_from_dict(
         self, library_dict: dict[str, Any], author_id: Column, author_name: Column

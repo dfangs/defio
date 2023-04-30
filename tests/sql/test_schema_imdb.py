@@ -39,6 +39,7 @@ def fixture_crew_manager_id() -> Column:
     return Column(
         name="manager_id",
         dtype=DataType.INTEGER,
+        constraint=ColumnConstraint(is_foreign_key=True),
     )
 
 
@@ -83,7 +84,7 @@ def fixture_director_id() -> Column:
     return Column(
         name="id",
         dtype=DataType.INTEGER,
-        constraint=ColumnConstraint(is_primary_key=True),
+        constraint=ColumnConstraint(is_primary_key=True, is_foreign_key=True),
     )
 
 
@@ -120,6 +121,7 @@ def fixture_md_movie_id() -> Column:
     return Column(
         name="movie_id",
         dtype=DataType.INTEGER,
+        constraint=ColumnConstraint(is_foreign_key=True),
     )
 
 
@@ -128,6 +130,7 @@ def fixture_md_director_id() -> Column:
     return Column(
         name="director_id",
         dtype=DataType.INTEGER,
+        constraint=ColumnConstraint(is_foreign_key=True),
     )
 
 
@@ -177,6 +180,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "id",
                         "dtype": "integer",
                         "is_primary_key": True,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -185,6 +189,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "salary",
                         "dtype": "real",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": None,
@@ -193,6 +198,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "manager_id",
                         "dtype": "integer",
                         "is_primary_key": False,
+                        "is_foreign_key": True,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -206,6 +212,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "id",
                         "dtype": "integer",
                         "is_primary_key": True,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -214,6 +221,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "title",
                         "dtype": "character varying",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": 256,
@@ -227,6 +235,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "id",
                         "dtype": "integer",
                         "is_primary_key": True,
+                        "is_foreign_key": True,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -235,6 +244,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "name",
                         "dtype": "character varying",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": None,
@@ -243,6 +253,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "is_award_winning",
                         "dtype": "boolean",
                         "is_primary_key": False,
+                        "is_foreign_key": False,
                         "is_unique": False,
                         "is_not_null": True,
                         "max_char_length": None,
@@ -256,6 +267,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "movie_id",
                         "dtype": "integer",
                         "is_primary_key": False,
+                        "is_foreign_key": True,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
@@ -264,6 +276,7 @@ def fixture_imdb_dict() -> dict[str, Any]:
                         "name": "director_id",
                         "dtype": "integer",
                         "is_primary_key": False,
+                        "is_foreign_key": True,
                         "is_unique": False,
                         "is_not_null": False,
                         "max_char_length": None,
