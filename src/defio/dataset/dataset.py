@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import Literal, TypeAlias, final
+from typing import Literal, TypeAlias, final, overload
 
 import pandas as pd
 from attrs import define
@@ -89,15 +89,23 @@ class Dataset:
 
         raise ValueError(f"File for table `{table.name}` does not exist")
 
-    def get_dataframe(self, table: Table | str) -> pd.DataFrame:
+    @overload
+    def get_dataframe(self, table: Table, /) -> pd.DataFrame:
+        ...
+
+    @overload
+    def get_dataframe(self, table_name: str, /) -> pd.DataFrame:
+        ...
+
+    def get_dataframe(self, table_or_table_name: Table | str) -> pd.DataFrame:
         """
         Loads the given table from the filesystem and returns the pandas dataframe.
 
         Raises a `ValueError` if the given table does not belong to this dataset,
         or if the corresponding file does not exist.
         """
-        match table:
-            case Table():
+        match table_or_table_name:
+            case Table() as table:
                 if table not in self.tables:
                     raise ValueError(f"Table `{table.name}` is not in this dataset")
 

@@ -4,7 +4,7 @@ import json
 import multiprocessing as mp
 from collections.abc import Mapping
 from itertools import repeat
-from typing import Any, TextIO, TypeAlias, final
+from typing import Any, TextIO, TypeAlias, final, overload
 
 import pandas as pd
 from attrs import define, field
@@ -43,28 +43,56 @@ class TableStats:
 
     _stats: Mapping[Column, ColumnStats] = field(alias="stats")
 
-    def get(self, column: Column) -> ColumnStats:
+    @overload
+    def get(self, column: Column, /) -> ColumnStats:
+        ...
+
+    @overload
+    def get(self, column_name: str, /) -> ColumnStats:
+        ...
+
+    def get(self, column_or_column_name: Column | str) -> ColumnStats:
         """
         Returns the stats for the given column.
 
         Raises a `ValueError` if the given column is not in this table stats.
         """
-        if column not in self._stats:
-            raise ValueError(f"Column `{column.name}` does not exist")
-        return self._stats[column]
+        match column_or_column_name:
+            case Column() as column:
+                column_name = column.name
+                if column in self._stats:
+                    return self._stats[column]
+
+            case str() as column_name:
+                for column, column_stats in self._stats.items():
+                    if column.name == column_name:
+                        return column_stats
+
+        raise ValueError(f"Column `{column_name}` does not exist")
 
     @staticmethod
-    def from_dataframe(df: pd.DataFrame, table: Table) -> TableStats:
+    def from_dataframe(
+        df: pd.DataFrame, table: Table, /, *, verbose: bool = False
+    ) -> TableStats:
         """
         Compute the stats of the given table (i.e. all of the column stats)
         based on the given data.
         """
-        return TableStats(
-            {
-                column: ColumnStats.from_series(df[column.name], column)
-                for column in table.columns
-            }
-        )
+        with log_around(
+            verbose,
+            start=f"Computing the stats for table `{table.name}`",
+            end=lambda: (
+                f"Finished computing the stats for table `{table.name}` "
+                f"in {measurement.total_seconds:.2f} seconds"
+            ),
+        ):
+            with measure_time() as measurement:
+                return TableStats(
+                    {
+                        column: ColumnStats.from_series(df[column.name], column)
+                        for column in table.columns
+                    }
+                )
 
     @staticmethod
     def from_list(data: list[dict[str, Any]]) -> TableStats:
@@ -97,15 +125,32 @@ class DataStats:
 
     _stats: Mapping[Table, TableStats]
 
-    def get(self, table: Table) -> TableStats:
+    @overload
+    def get(self, table: Table, /) -> TableStats:
+        ...
+
+    @overload
+    def get(self, table_name: str, /) -> TableStats:
+        ...
+
+    def get(self, table_or_table_name: Table | str) -> TableStats:
         """
         Returns the stats for the given table.
 
         Raises a `ValueError` if the given table is not in this data stats.
         """
-        if table not in self._stats:
-            raise ValueError(f"Table `{table.name}` does not exist")
-        return self._stats[table]
+        match table_or_table_name:
+            case Table() as table:
+                table_name = table.name
+                if table in self._stats:
+                    return self._stats[table]
+
+            case str() as table_name:
+                for table, table_stats in self._stats.items():
+                    if table.name == table_name:
+                        return table_stats
+
+        raise ValueError(f"Table `{table_name}` does not exist")
 
     @staticmethod
     def from_dataset(
@@ -150,16 +195,9 @@ class DataStats:
         This is especially needed since `multiprocessing` can only execute
         functions in the global scope (i.e. not lambda or nested functions).
         """
-        with log_around(
-            verbose,
-            start=f"Computing the stats for table `{table.name}`",
-            end=lambda: (
-                f"Finished computing the stats for table `{table.name}` "
-                f"in {measurement.total_seconds:.2f} seconds"
-            ),
-        ):
-            with measure_time() as measurement:
-                return TableStats.from_dataframe(dataset.get_dataframe(table), table)
+        return TableStats.from_dataframe(
+            dataset.get_dataframe(table), table, verbose=verbose
+        )
 
     @classmethod
     def from_list(cls, data: list[dict[str, Any]]) -> DataStats:

@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from enum import StrEnum, auto, unique
+from itertools import chain
 from typing import Any, Generic, TypeVar, assert_never, final
 
 import numpy as np
@@ -223,7 +225,6 @@ class CategoricalColumnStats(ColumnStats, Generic[_T]):
 
     @override
     def to_dict(self) -> dict[str, Any]:
-        print(self.most_frequent_values)
         return {
             **super().to_dict(),
             # Convert to list instead of dict, since `_T` can be non-string values
@@ -366,23 +367,20 @@ class RawStringColumnStats(ColumnStats):
     @override
     def _init_from_series(self, series: pd.Series) -> None:
         super()._init_from_series(series)
-        df_column_name = "words"
-        word_row_counts: pd.Series = (
-            series.dropna()  # Drop NA values
-            .str.split()  # Split each string into list of words
-            .reset_index(name=df_column_name)  # Convert Series into DataFrame
-            .explode(df_column_name)  # Convert each word into its own row
-            .drop_duplicates()  # Drop duplicates, so we count the number of rows
-            .groupby(df_column_name)  # Group by unique words
-            .count()  # Count the number of occurrences (ignoring missing values)
-            .squeeze()  # Convert back to Series
-            .sort_values(ascending=False)
+
+        # Iterate over the underlying array directly since it's much faster
+        # Reference: https://stackoverflow.com/a/35005105
+        word_row_counts = Counter(
+            chain.from_iterable(
+                set(value.split()) for value in series.array if not pd.isna(value)
+            )
         )
 
         max_threshold = 100  # Arbitrary threshold
-        word_row_freqs = word_row_counts[:max_threshold] / len(series)
-
-        self.frequent_words = _convert_series_to_dict(word_row_freqs)
+        self.frequent_words = {
+            word: count / len(series)
+            for word, count in word_row_counts.most_common(max_threshold)
+        }
 
     @override
     def _init_from_dict(self, data: dict[str, Any]) -> None:
