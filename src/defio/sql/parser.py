@@ -14,6 +14,7 @@ from defio.sql.ast.expression import (
     UnaryExpression,
 )
 from defio.sql.ast.from_clause import AliasedTable, FromClause, Join, JoinType
+from defio.sql.ast.operator import BinaryOperator, LogicalOperator, UnaryOperator
 from defio.sql.ast.statement import (
     CreateStatement,
     DropRemoveType,
@@ -23,7 +24,6 @@ from defio.sql.ast.statement import (
     TargetList,
 )
 from defio.sql.ast.where_clause import CompoundPredicate, SimplePredicate, WhereClause
-from defio.sql.operator import BinaryOperator, LogicalOperator, UnaryOperator
 from defio.sql.schema import (
     Column,
     ColumnConstraint,

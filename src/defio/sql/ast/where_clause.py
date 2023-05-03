@@ -6,7 +6,7 @@ from typing_extensions import override
 
 from defio.sql.ast import SQL
 from defio.sql.ast.expression import Expression
-from defio.sql.operator import LogicalOperator
+from defio.sql.ast.operator import LogicalOperator
 from defio.utils.attrs import to_tuple
 
 
