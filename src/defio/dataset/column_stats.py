@@ -201,7 +201,7 @@ class CategoricalColumnStats(ColumnStats, Generic[_T]):
 
     Supported data types: `Integer`, `String`, `Boolean`.
 
-    Reasonable operations: `=`, `!=`, `IN`.
+    Reasonable operators: `=`, `!=`, and `IN`.
     """
 
     most_frequent_values: Mapping[_T, float]
@@ -247,7 +247,7 @@ class KeyColumnStats(ColumnStats, Generic[_T]):
 
     Supported data types: `Integer` and `String` (commonly used keys).
 
-    Reasonable operations: Point query (`=`).
+    Reasonable operators: `=` (point query).
     """
 
     sampled_values: Sequence[_T]
@@ -298,7 +298,7 @@ class NumericalColumnStats(ColumnStats):
 
     Supported data types: `Integer`, `Float`.
 
-    Reasonable operations: Range query (`<`, `<=`, `>`, `>=`, and `BETWEEN`).
+    Reasonable operators: `<`, `<=`, `>`, `>=`, and `BETWEEN` (range query).
 
     Note:
     Using generic type for int/float is troublesome,
@@ -359,7 +359,7 @@ class RawStringColumnStats(ColumnStats):
 
     Supported data types: `String`.
 
-    Reasonable operations: `LIKE`.
+    Reasonable operators: `LIKE`.
     """
 
     frequent_words: Mapping[str, float]

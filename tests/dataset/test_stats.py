@@ -35,6 +35,7 @@ def create_company_dataset() -> Iterator[Dataset]:
     with tempfile.TemporaryDirectory() as tmpdirname:
         dataset_path = Path(tmpdirname)
         schema_filename = "schema.sql"
+        stats_filename = "stats.json"
         tables_dirname = "tsv"
         schema_path = dataset_path / schema_filename
         tables_path = dataset_path / tables_dirname
@@ -59,6 +60,7 @@ def create_company_dataset() -> Iterator[Dataset]:
             name="company",
             directory=dataset_path,
             schema_filename=schema_filename,
+            stats_filename=stats_filename,
             tables_dirname=tables_dirname,
             load_config=DatasetLoadConfig(
                 delimiter="\t",
@@ -101,6 +103,21 @@ def test_load_and_dump() -> None:
 
         stream.seek(0)
         serde_stats = stats.load(stream)
+
+        # Can only compare via JSON since `DataStats` doesn't implement value equality
+        assert serde_stats.to_list() == stats.to_list()
+
+
+def test_dataset_stats() -> None:
+    with create_company_dataset() as dataset:
+        stats = DataStats.from_dataset(dataset, concurrent=False, verbose=False)
+
+        # Write to a file instead of `StringIO`
+        with open(dataset.stats_path, mode="w+", encoding="utf-8") as f:
+            stats.dump(f)
+
+        # `Dataset.stats` property loads the stats from file
+        serde_stats = dataset.stats
 
         # Can only compare via JSON since `DataStats` doesn't implement value equality
         assert serde_stats.to_list() == stats.to_list()

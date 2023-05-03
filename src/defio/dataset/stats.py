@@ -4,12 +4,11 @@ import json
 import multiprocessing as mp
 from collections.abc import Mapping
 from itertools import repeat
-from typing import Any, TextIO, TypeAlias, final, overload
+from typing import TYPE_CHECKING, Any, TextIO, TypeAlias, final, overload
 
 import pandas as pd
 from attrs import define, field
 
-from defio.dataset import Dataset
 from defio.dataset.column_stats import (
     CategoricalColumnStats,
     ColumnStats,
@@ -20,6 +19,9 @@ from defio.dataset.column_stats import (
 from defio.sql.schema import Column, Table
 from defio.utils.logging import log_around
 from defio.utils.time import measure_time
+
+if TYPE_CHECKING:
+    from defio.dataset import Dataset
 
 # Union types for pattern matching
 

@@ -6,6 +6,7 @@ from typing import Literal, TypeAlias, final, overload
 import pandas as pd
 from attrs import define
 
+from defio.dataset.stats import DataStats
 from defio.sql.parser import parse_schema
 from defio.sql.schema import Schema, Table
 
@@ -40,6 +41,7 @@ class Dataset:
     name: str
     directory: Path
     schema_filename: str
+    stats_filename: str
     tables_dirname: str
     load_config: DatasetLoadConfig
 
@@ -47,6 +49,11 @@ class Dataset:
     def schema_path(self) -> Path:
         """Returns the path to this dataset's schema file."""
         return self.directory / self.schema_filename
+
+    @property
+    def stats_path(self) -> Path:
+        """Returns the path to this dataset's stats file."""
+        return self.directory / self.stats_filename
 
     @property
     def tables_dirpath(self) -> Path:
@@ -60,7 +67,7 @@ class Dataset:
 
         Note that this property is computed lazily on first access
         (i.e. the schema file is not read on construction time)
-        and cached for subsequent accesses.
+        and cached for subsequent access.
 
         Raises a `ValueError` if the schema cannot be read from the filesystem,
         or if the file cannot be parsed as a valid schema.
@@ -79,6 +86,28 @@ class Dataset:
     def tables(self) -> Sequence[Table]:
         """Returns the set of tables in this dataset."""
         return self.schema.tables
+
+    @cached_property
+    def stats(self) -> DataStats:
+        """
+        Returns the corresponding stats of this dataset.
+
+        Note that this property does not compute the stats on-demand;
+        it only loads the precomputed stats from the given file and
+        caches the result for subsequent access.
+
+        Raises a `ValueError` if the stats cannot be read from the filesystem,
+        or if the file cannot be parsed as a valid `DataStats`.
+        """
+        try:
+            with open(self.stats_path, mode="r", encoding="utf-8") as f:
+                return DataStats.load(f)
+
+        except OSError as exc:
+            raise ValueError("Stats file does not exist") from exc
+
+        except ValueError as exc:
+            raise ValueError("Stats cannot be parsed") from exc
 
     def _table_path(self, table: Table) -> Path:
         for path in self.tables_dirpath.iterdir():

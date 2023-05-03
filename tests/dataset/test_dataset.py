@@ -36,6 +36,7 @@ def create_library_dataset() -> Iterator[Dataset]:
     with tempfile.TemporaryDirectory() as tmpdirname:
         dataset_path = Path(tmpdirname)
         schema_filename = "schema.sql"
+        stats_filename = "stats.json"
         tables_dirname = "tsv"
         schema_path = dataset_path / schema_filename
         tables_path = dataset_path / tables_dirname
@@ -60,6 +61,7 @@ def create_library_dataset() -> Iterator[Dataset]:
             name="library",
             directory=dataset_path,
             schema_filename=schema_filename,
+            stats_filename=stats_filename,
             tables_dirname=tables_dirname,
             load_config=DatasetLoadConfig(
                 delimiter="\t",
@@ -76,6 +78,7 @@ def create_partial_dataset() -> Iterator[Dataset]:
     with tempfile.TemporaryDirectory() as tmpdirname:
         dataset_path = Path(tmpdirname)
         schema_filename = "schema.sql"
+        stats_filename = "stats.json"
         tables_dirname = "tsv"
         schema_path = dataset_path / schema_filename
         tables_path = dataset_path / tables_dirname
@@ -89,6 +92,7 @@ def create_partial_dataset() -> Iterator[Dataset]:
             name="library",
             directory=dataset_path,
             schema_filename=schema_filename,
+            stats_filename=stats_filename,
             tables_dirname=tables_dirname,
             load_config=DatasetLoadConfig(
                 delimiter="\t",
@@ -108,6 +112,7 @@ def create_invalid_dataset() -> Iterator[Dataset]:
         name="invalid",
         directory=invalid_path,
         schema_filename="schema.sql",
+        stats_filename="stats.json",
         tables_dirname="tsv",
         load_config=DatasetLoadConfig(
             delimiter="\t",
@@ -129,6 +134,13 @@ class TestDataset:
         with create_library_dataset() as dataset:
             assert dataset.schema == schema
             assert dataset.tables == schema.tables
+
+    def test_stats(self) -> None:
+        # NOTE: This should raise an error since we don't prepare the stats
+        # Test this functionality in `test_stats` instead
+        with create_library_dataset() as dataset:
+            with pytest.raises(ValueError):
+                print(dataset.stats)
 
     def test_get_dataframe(self, schema: Schema) -> None:
         with create_library_dataset() as dataset:

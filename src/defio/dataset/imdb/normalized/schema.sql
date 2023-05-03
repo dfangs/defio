@@ -48,8 +48,8 @@ CREATE TABLE principal_category (
 CREATE TABLE title (
     id character varying(10) PRIMARY KEY,
     title_type_id integer NOT NULL REFERENCES title_type(id),
-    primary_title character varying(419) NOT NULL,
-    original_title character varying(419) NOT NULL,
+    primary_title character varying(421) NOT NULL,
+    original_title character varying(421) NOT NULL,
     is_adult boolean NOT NULL,
     start_year integer,
     end_year integer,
@@ -122,7 +122,7 @@ CREATE TABLE principal (
     title_id character varying(10) NOT NULL REFERENCES title(id),
     principal_category_id integer NOT NULL REFERENCES principal_category(id),
     name_id character varying(10),
-    job character varying(286)
+    job character varying(290)
 );
 
 CREATE TABLE principal_character (
