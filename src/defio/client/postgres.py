@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,6 +13,8 @@ from typing_extensions import override
 
 from defio.client import AsyncClient, AsyncConnection
 from defio.client.config import DbConfig
+from defio.sql.ast.statement import CreateStatement, DropStatement
+from defio.sql.parser import parse_sql
 
 
 @define
@@ -78,8 +82,15 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
 
     @override
     async def execute(self, query: str) -> AsyncIterator[tuple[Any, ...]]:
-        # Psycopg essentially only accepts `LiteralString`, so disable type check here
-        cursor = await self._aconn.execute(query)  # type: ignore
+        try:
+            # Psycopg only accepts `LiteralString`, so disable type check here
+            cursor = await self._aconn.execute(query)  # type: ignore
+
+        except asyncio.CancelledError:
+            # Task Group will cancel _all_ children tasks if any error is thrown,
+            # so make sure to gracefully cancel the still-running queries
+            self._aconn.cancel()
+            raise
 
         # If the last operation did not produce any results,
         # iterating over the cursor will raise an exception
@@ -108,6 +119,45 @@ class PostgresClient(AsyncClient[tuple[Any, ...]]):
     password: str
     dbname: str | None = None
     ssl_root_cert_path: Path | None = None
+
+    async def create_tables(
+        self, /, *, schema_path: Path, verbose: bool = False
+    ) -> None:
+        """
+        Creates some tables by executing the DDL statements from the given schema file.
+
+        Raises a `ValueError` if the schema cannot be read from the filesystem,
+        or if it is not a valid schema (which must consist of only `CREATE` and
+        `DROP` statements).
+        """
+        try:
+            with open(schema_path, mode="r", encoding="utf-8") as f:
+                ddl_statements = parse_sql(f.read())
+        except OSError as exc:
+            raise ValueError("Schema file does not exist") from exc
+        except ValueError as exc:
+            raise ValueError("Schema cannot be parsed") from exc
+
+        # Run statements _sequentially_ in the topological order
+        # based on foreign key constraint dependencies
+        # (not enforced with code; schema file must obey this)
+        async with await self.connect() as aconn:
+            for statement in ddl_statements:
+                if not isinstance(statement, (CreateStatement, DropStatement)):
+                    raise ValueError(
+                        "Schema is not valid, as it contains "
+                        "statements other than `CREATE` and `DROP`"
+                    )
+
+                if verbose:
+                    # Truncate `CREATE` statements (which are generally too long)
+                    truncated_statement = re.sub(r"\(.+\)", "(...)", str(statement))
+                    print(f'Executing: "{truncated_statement}"')
+
+                await aconn.execute_one(str(statement))
+
+        if verbose:
+            print("---")
 
     @classmethod
     def from_config(cls, config: DbConfig) -> Self:

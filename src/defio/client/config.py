@@ -191,7 +191,7 @@ class PulumiDbConfig(DbConfig):
         return initial_dbname
 
     @property
-    @abstractmethod
     @override
+    @abstractmethod
     def ssl_root_cert_path(self) -> Path | None:
         raise NotImplementedError
