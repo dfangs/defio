@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence, Set
 from enum import Enum, unique
-from typing import Any, TextIO, final
+from typing import Any, NamedTuple, TextIO, final
 
 import pandas as pd
 from attrs import define, field
@@ -63,6 +63,8 @@ class RelationshipGraph:
     Relationship graph of the tables in a dataset.
     """
 
+    # Use two directed graphs instead of one undirected graph
+    # since directionality is still needed in `to_list()`
     _graph: DirectedGraph[TableColumn]
     _reverse_graph: DirectedGraph[TableColumn]
 
@@ -157,8 +159,7 @@ class RelationshipGraph:
 
 
 @final
-@define(frozen=True)
-class TableColumn:
+class TableColumn(NamedTuple):
     """Record type that represents a particular table-column pair."""
 
     table: Table

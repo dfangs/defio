@@ -10,6 +10,7 @@ from defio.sql.ast.expression import (
     Constant,
     Expression,
     FunctionCall,
+    FunctionName,
     UnaryExpression,
 )
 from defio.sql.ast.from_clause import AliasedTable, FromClause, Join, JoinType
@@ -58,7 +59,7 @@ def parse_sql(sql: str) -> Sequence[Statement]:
     or if it contains some features not yet supported by this parser.
 
     Some of these are as follows:
-    - `count(*)`
+    - `COUNT(DISTINCT ...)`
     - Aliases in SELECT target list (e.g., `SELECT price AS p FROM ...`)
 
     However, for some DDL statements, the parser may still return
@@ -268,8 +269,8 @@ def _parse_from_clause(nodes: Sequence[FromClauseAst]) -> FromClause:
     # Case 1: Cross joins (eg. FROM a, b)
     if len(nodes) > 1:
         return Join(
-            join_type=JoinType.CROSS_JOIN,
             left=_parse_from_clause(nodes[:-1]),
+            join_type=JoinType.CROSS_JOIN,
             right=_parse_from_clause(nodes[-1:]),
             predicate=None,
         )
@@ -285,8 +286,8 @@ def _parse_from_clause(nodes: Sequence[FromClauseAst]) -> FromClause:
             join_predicate = cast(ast.A_Expr, node.quals)
 
             return Join(
-                join_type=_parse_join_type(join_type),
                 left=_parse_from_clause((left_arg,)),
+                join_type=_parse_join_type(join_type),
                 right=_parse_from_clause((right_arg,)),
                 predicate=_parse_expression(join_predicate),
             )
@@ -364,17 +365,26 @@ def _parse_expression(node: ExpressionAst) -> Expression:
 
         case ast.FuncCall():
             func_name = cast(tuple[ast.String, ...], node.funcname)
+            agg_distinct = cast(bool, node.agg_distinct)
+            agg_star = cast(bool, node.agg_star)
             args = cast(tuple[ExpressionAst, ...] | None, node.args)
 
-            # NOTE: We don't handle function calls without arguments for now
-            # This includes `count(*)`
-            if args is None:
+            func_name = FunctionName.from_str(_parse_qualified_string(func_name))
+
+            if agg_distinct:
                 raise NotImplementedError
 
-            return FunctionCall(
-                func_name=_parse_qualified_string(func_name),
-                args=[_parse_expression(arg) for arg in args],
-            )
+            if agg_star:
+                assert args is None
+                return FunctionCall(func_name=func_name, agg_star=True)
+
+            if args is not None:
+                return FunctionCall(
+                    func_name=func_name,
+                    args=[_parse_expression(arg) for arg in args],
+                )
+
+            raise NotImplementedError
 
         case _:
             assert_never(node)
@@ -419,8 +429,8 @@ def _parse_a_expression(node: ast.A_Expr) -> Expression:
                 assert_never(kind)
 
         return BinaryExpression(
-            operator=operator,
             left=_parse_expression(left_expr),
+            operator=operator,
             right=_parse_expression(right_expr),
         )
 
@@ -439,8 +449,8 @@ def _parse_a_expression(node: ast.A_Expr) -> Expression:
             raise NotImplementedError
 
     return BinaryExpression(
-        operator=operator,
         left=_parse_expression(left_expr),
+        operator=operator,
         right=[_parse_expression(expr) for expr in right_exprs],
     )
 

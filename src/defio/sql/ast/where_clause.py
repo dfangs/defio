@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 from collections.abc import Sequence
+from typing import final
 
 from attrs import define, field
 from typing_extensions import override
@@ -16,6 +15,7 @@ class WhereClause(SQL):
     """Abstract base class for `where_clause` of a `SELECT` statement."""
 
 
+@final
 @define(frozen=True)
 class SimplePredicate(WhereClause):
     """Represents a single unary/binary predicate."""
@@ -27,6 +27,7 @@ class SimplePredicate(WhereClause):
         return str(self.expression)
 
 
+@final
 @define(frozen=True)
 class CompoundPredicate(WhereClause):
     """Represents a compound predicate with an AND/OR/NOT operator."""

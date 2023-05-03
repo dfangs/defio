@@ -34,7 +34,7 @@ class BinaryOperator(Enum):
     LEQ = ("<=",)
     GEQ = (">=",)
     EQ = ("=",)
-    NEQ = ("<>", "!=")
+    NEQ = ("!=", "<>")
     IN = ("IN",)
     LIKE = ("LIKE", "~~")
     ILIKE = ("ILIKE", "~~*")

@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 from enum import StrEnum, unique
+from typing import final
 
 from attrs import define
 from typing_extensions import override
@@ -14,6 +13,7 @@ class FromClause(SQL):
     """Abstract base class for `from_clause` of a `SELECT` statement."""
 
 
+@final
 @define(frozen=True)
 class AliasedTable(FromClause):
     """Represents a table (which may have an alias name)."""
@@ -28,6 +28,18 @@ class AliasedTable(FromClause):
         return self.name
 
 
+@unique
+class JoinType(StrEnum):
+    """Join types supported by PostgreSQL."""
+
+    INNER_JOIN = "JOIN"
+    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
+    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
+    FULL_OUTER_JOIN = "FULL OUTER JOIN"
+    CROSS_JOIN = "CROSS JOIN"
+
+
+@final
 @define(frozen=True)
 class Join(FromClause):
     """
@@ -36,8 +48,8 @@ class Join(FromClause):
     Note that the join `predicate` may be `None` (e.g., cross joins).
     """
 
-    join_type: JoinType
     left: FromClause
+    join_type: JoinType
     right: FromClause
     predicate: Expression | None
 
@@ -53,14 +65,3 @@ class Join(FromClause):
 
         assert self.predicate is not None
         return f"{self.left} {self.join_type} {self.right} ON {self.predicate}"
-
-
-@unique
-class JoinType(StrEnum):
-    """Join types supported by PostgreSQL."""
-
-    INNER_JOIN = "JOIN"
-    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
-    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
-    FULL_OUTER_JOIN = "FULL OUTER JOIN"
-    CROSS_JOIN = "CROSS JOIN"

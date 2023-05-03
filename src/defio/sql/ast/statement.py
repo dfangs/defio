@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 from collections.abc import Mapping, Sequence
 from enum import StrEnum, unique
+from typing import final
 
 from attrs import define, field
 from typing_extensions import override
@@ -19,6 +18,7 @@ class Statement(SQL):
     """Abstract base class for SQL statements."""
 
 
+@final
 @define(frozen=True)
 class CreateStatement(Statement):
     """Represents a SQL `CREATE` statement."""
@@ -56,6 +56,15 @@ class CreateStatement(Statement):
         return f"CREATE TABLE {self.table.name} ({', '.join(column_defs)});"
 
 
+@unique
+class DropRemoveType(StrEnum):
+    """Types of objects that can be removed via `DROP` statements."""
+
+    TABLE = "TABLE"
+    COLUMN = "COLUMN"
+
+
+@final
 @define(frozen=True)
 class DropStatement(Statement):
     """Represents a SQL `DROP` statement."""
@@ -75,14 +84,19 @@ class DropStatement(Statement):
         )
 
 
-@unique
-class DropRemoveType(StrEnum):
-    """Types of objects that can be removed via `DROP` statements."""
+@final
+@define(frozen=True)
+class TargetList(SQL):
+    """Represents a target list of a `SELECT` statement."""
 
-    TABLE = "TABLE"
-    COLUMN = "COLUMN"
+    targets: Sequence[Expression] = field(converter=to_tuple)
+
+    @override
+    def __str__(self) -> str:
+        return ", ".join(str(target) for target in self.targets)
 
 
+@final
 @define(frozen=True)
 class SelectStatement(Statement):
     """Represents a SQL `SELECT` statement."""
@@ -99,14 +113,3 @@ class SelectStatement(Statement):
             + (f" WHERE {self.where_clause}" if self.where_clause is not None else "")
             + ";"
         )
-
-
-@define(frozen=True)
-class TargetList(SQL):
-    """Represents a target list of a `SELECT` statement."""
-
-    targets: Sequence[Expression] = field(converter=to_tuple)
-
-    @override
-    def __str__(self) -> str:
-        return ", ".join(str(target) for target in self.targets)

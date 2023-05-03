@@ -297,7 +297,15 @@ def _test_parse_single_statement(sql: str) -> None:
         ),
         pytest.param(
             "SELECT year, avg(price) FROM book WHERE year BETWEEN 2000 AND 2010;",
-            id="aggregate function",
+            id="aggregate function (lowercase)",
+        ),
+        pytest.param(
+            "SELECT title, MIN(price) FROM book;",
+            id="aggregate function (uppercase)",
+        ),
+        pytest.param(
+            "SELECT COUNT(*) FROM book WHERE year BETWEEN 2000 AND 2010;",
+            id="COUNT(*)",
         ),
     ],
 )
@@ -339,7 +347,7 @@ def test_parse_invalid(sql: str) -> None:
 @pytest.mark.parametrize(
     "sql",
     [
-        "SELECT count(*) FROM book;",
+        "SELECT COUNT(DISTINCT title) FROM book;",
         "INSERT INTO book VALUES ('untitled', 2000);",
     ],
 )
