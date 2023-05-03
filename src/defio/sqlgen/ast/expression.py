@@ -123,11 +123,12 @@ class GenFunctionCall(GenExpression):
     """Wrapper class for `FunctionCall`."""
 
     func_name: FunctionName
+    agg_distinct: bool = False
     agg_star: bool = False
     args: Sequence[GenExpression] | None = field(default=None, converter=to_tuple)
 
     def __attrs_post_init__(self) -> None:
-        assert (self.agg_star and self.args is None) or (
+        assert (self.agg_star and not self.agg_distinct and self.args is None) or (
             not self.agg_star and self.args is not None and len(self.args) > 0
         )
 
@@ -139,5 +140,6 @@ class GenFunctionCall(GenExpression):
             return FunctionCall(func_name=self.func_name, agg_star=True)
         return FunctionCall(
             func_name=self.func_name,
+            agg_distinct=self.agg_distinct,
             args=[gen_expr.to_sql(table_aliases) for gen_expr in self.args],
         )

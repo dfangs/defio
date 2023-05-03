@@ -134,16 +134,22 @@ class FunctionCall(Expression):
     """Represents a function call (e.g., aggregate functions)."""
 
     func_name: FunctionName
+    agg_distinct: bool = False
     agg_star: bool = False
     args: Sequence[Expression] | None = field(default=None, converter=to_tuple)
 
     def __attrs_post_init__(self) -> None:
-        assert (self.agg_star and self.args is None) or (
+        assert (self.agg_star and not self.agg_distinct and self.args is None) or (
             not self.agg_star and self.args is not None and len(self.args) > 0
         )
 
     @override
     def __str__(self) -> str:
+        func_name = self.func_name.upper()
         if self.args is None:
-            return f"{self.func_name.upper()}(*)"
-        return f"{self.func_name.upper()}({', '.join(str(arg) for arg in self.args)})"
+            return f"{func_name}(*)"
+
+        args = ", ".join(str(arg) for arg in self.args)
+        return f"{self.func_name.upper()}" + (
+            f"(DISTINCT {args})" if self.agg_distinct else f"({args})"
+        )

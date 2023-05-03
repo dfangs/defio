@@ -59,7 +59,6 @@ def parse_sql(sql: str) -> Sequence[Statement]:
     or if it contains some features not yet supported by this parser.
 
     Some of these are as follows:
-    - `COUNT(DISTINCT ...)`
     - Aliases in SELECT target list (e.g., `SELECT price AS p FROM ...`)
 
     However, for some DDL statements, the parser may still return
@@ -371,16 +370,14 @@ def _parse_expression(node: ExpressionAst) -> Expression:
 
             func_name = FunctionName.from_str(_parse_qualified_string(func_name))
 
-            if agg_distinct:
-                raise NotImplementedError
-
             if agg_star:
-                assert args is None
+                assert not agg_distinct and args is None
                 return FunctionCall(func_name=func_name, agg_star=True)
 
             if args is not None:
                 return FunctionCall(
                     func_name=func_name,
+                    agg_distinct=agg_distinct,
                     args=[_parse_expression(arg) for arg in args],
                 )
 
