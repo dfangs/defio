@@ -8,7 +8,9 @@ from typing import final
 
 import pendulum
 from attrs import define
-from pendulum import UTC, DateTime, Period  # type: ignore
+from pendulum import UTC, DateTime, Period
+
+from defio.utils.logging import log_around  # type: ignore
 
 _SECONDS_TO_MICROSECONDS = 1_000_000
 
@@ -59,8 +61,8 @@ class TimeMeasurement:
 
         return self.start_time.add(
             microseconds=int(
-                _SECONDS_TO_MICROSECONDS
-                * (self._end_time_benchmark - self._start_time_benchmark)
+                (self._end_time_benchmark - self._start_time_benchmark)
+                * _SECONDS_TO_MICROSECONDS
             )
         )
 
@@ -86,11 +88,10 @@ class TimeMeasurement:
 
 @contextmanager
 def measure_time(
-    timer: Callable[[], float] = time.perf_counter
+    *, timer: Callable[[], float] = time.perf_counter
 ) -> Iterator[TimeMeasurement]:
     """
-    Context manager that measures the elapsed time
-    over the code block.
+    Context manager that measures the elapsed time over the code block.
 
     Usage:
     ```
@@ -107,6 +108,33 @@ def measure_time(
         yield measurement
     finally:
         measurement.stop()
+
+
+@contextmanager
+def log_time(
+    verbose: bool,
+    /,
+    *,
+    start: str | Callable[[TimeMeasurement], str],
+    end: str | Callable[[TimeMeasurement], str],
+    logger: Callable[[str], None] = print,
+    timer: Callable[[], float] = time.perf_counter,
+) -> Iterator[None]:
+    """
+    Wrapper context manager for `log_around` and `measure_time`.
+
+    This context manager measures the elapsed time over the code block.
+    If `verbose is set to `True`, it also logs the given start and end
+    messages before and after the code block executes, respectively.
+    """
+    with log_around(
+        verbose,
+        start=start if isinstance(start, str) else lambda: start(measurement),
+        end=end if isinstance(end, str) else lambda: end(measurement),
+        logger=logger,
+    ):
+        with measure_time(timer=timer) as measurement:
+            yield
 
 
 def get_current_time() -> DateTime:

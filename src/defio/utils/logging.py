@@ -9,15 +9,16 @@ def log_around(
     *,
     start: str | Callable[[], str],
     end: str | Callable[[], str],
+    logger: Callable[[str], None] = print,
 ) -> Iterator[None]:
     """
-    Context manager that prints logging messages before and after
-    the code block executes, if `enable` is set to `True`.
+    Context manager that logs the given messages before and after
+    the code block executes, if `verbose` is set to `True`.
     """
     if verbose:
-        print(start if isinstance(start, str) else start())
+        logger(start if isinstance(start, str) else start())
 
     yield
 
     if verbose:
-        print(end if isinstance(end, str) else end())
+        logger(end if isinstance(end, str) else end())

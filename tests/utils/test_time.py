@@ -1,12 +1,12 @@
 import time
 from typing import Final
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock, call
 
 import pendulum
 import pytest
 from pytest_mock import MockerFixture
 
-from defio.utils.time import TimeMeasurement, measure_time
+from defio.utils.time import TimeMeasurement, log_time, measure_time
 
 CURRENT_TIME: Final = pendulum.datetime(year=2023, month=3, day=12)
 SECONDS_TO_MICROSECONDS: Final = 1_000_000
@@ -20,6 +20,11 @@ def fixture_mock_current_time(mocker: MockerFixture) -> MagicMock:
 @pytest.fixture(name="mock_timer")
 def fixture_mock_timer(mocker: MockerFixture) -> MagicMock:
     return mocker.spy(time, "perf_counter")
+
+
+@pytest.fixture(name="mock_print")
+def fixture_mock_print() -> Mock:
+    return Mock(spec=print)
 
 
 class TestTimeMeasurement:
@@ -93,3 +98,23 @@ class TestMeasureTime:
             with measure_time() as measurement:
                 # Must not get the elapsed time within the block
                 print(measurement.elapsed_time)
+
+
+def test_log_time(mock_print: Mock, mock_timer: MagicMock) -> None:
+    with log_time(
+        True,
+        start=(start := "start"),
+        end=lambda m: str(m.total_seconds),
+        logger=mock_print,
+        timer=mock_timer,
+    ):
+        start_time_benchmark = mock_timer.spy_return
+        mock_print.assert_called_once_with(start)
+
+    end_time_benchmark = mock_timer.spy_return
+    elapsed_time_seconds = (
+        int((end_time_benchmark - start_time_benchmark) * SECONDS_TO_MICROSECONDS)
+        / SECONDS_TO_MICROSECONDS
+    )
+
+    mock_print.assert_has_calls([call(start), call(str(elapsed_time_seconds))])

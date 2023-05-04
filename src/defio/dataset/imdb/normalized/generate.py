@@ -21,8 +21,7 @@ from defio.dataset.imdb.source.schema import (
     TitleType,
 )
 from defio.dataset.utils import TsvReader, TsvWriter, compress_to_gzip
-from defio.utils.logging import log_around
-from defio.utils.time import measure_time
+from defio.utils.time import log_time
 
 
 async def generate_tables(
@@ -40,56 +39,52 @@ async def generate_tables(
     If `target_gz_dir` is provided, then compress the resulting TSV files
     into gzip as well.
     """
-    with log_around(
+    with log_time(
         verbose,
         start="Generating normalized tables of the new IMDB dataset\n---",
-        end=lambda: (
-            "---\nFinished generating all tables "
-            f"in {measurement.total_seconds:.2f} seconds"
+        end=lambda m: (
+            "---\nFinished generating all tables " f"in {m.total_seconds:.2f} seconds"
         ),
     ):
-        with measure_time() as measurement:
-            async with asyncio.TaskGroup() as tg:
-                # Generate enum-like tables
-                for enum_class in (
-                    Genre,
-                    TitleType,
-                    TitleAltType,
-                    CrewType,
-                    PrincipalCategory,
-                ):
-                    tg.create_task(
-                        asyncio.to_thread(
-                            _with_options(
-                                _generate_enum_table,
-                                enum_class.__name__,
-                                target_gz_dir,
-                                verbose,
-                            ),
-                            enum_class,
-                            target_tsv_dir,
-                        )
+        async with asyncio.TaskGroup() as tg:
+            # Generate enum-like tables
+            for enum_class in (
+                Genre,
+                TitleType,
+                TitleAltType,
+                CrewType,
+                PrincipalCategory,
+            ):
+                tg.create_task(
+                    asyncio.to_thread(
+                        _with_options(
+                            _generate_enum_table,
+                            enum_class.__name__,
+                            target_gz_dir,
+                            verbose,
+                        ),
+                        enum_class,
+                        target_tsv_dir,
                     )
+                )
 
-                # Generate the rest of the tables
-                for source_name, normalizer in {
-                    "title_akas": _normalize_title_akas,
-                    "title_basics": _normalize_title_basics,
-                    "title_crew": _normalize_title_crew,
-                    "title_episode": _normalize_title_episode,
-                    "title_principals": _normalize_title_principals,
-                    "title_ratings": _normalize_title_ratings,
-                    "name_basics": _normalize_name_basics,
-                }.items():
-                    tg.create_task(
-                        asyncio.to_thread(
-                            _with_options(
-                                normalizer, source_name, target_gz_dir, verbose
-                            ),
-                            source_tsv_dir,
-                            target_tsv_dir,
-                        )
+            # Generate the rest of the tables
+            for source_name, normalizer in {
+                "title_akas": _normalize_title_akas,
+                "title_basics": _normalize_title_basics,
+                "title_crew": _normalize_title_crew,
+                "title_episode": _normalize_title_episode,
+                "title_principals": _normalize_title_principals,
+                "title_ratings": _normalize_title_ratings,
+                "name_basics": _normalize_name_basics,
+            }.items():
+                tg.create_task(
+                    asyncio.to_thread(
+                        _with_options(normalizer, source_name, target_gz_dir, verbose),
+                        source_tsv_dir,
+                        target_tsv_dir,
                     )
+                )
 
 
 _P = ParamSpec("_P")
@@ -102,31 +97,29 @@ def _with_options(
     verbose: bool,
 ) -> Callable[_P, None]:
     def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> None:
-        with log_around(
+        with log_time(
             verbose,
             start=f"Generating tables from `{source_name}`",
-            end=lambda: (
+            end=lambda m: (
                 f"Finished generating tables from `{source_name}` "
-                f"in {measurement.total_seconds:.2f} seconds"
+                f"in {m.total_seconds:.2f} seconds"
             ),
         ):
-            with measure_time() as measurement:
-                target_paths = func(*args, **kwargs)
+            target_paths = func(*args, **kwargs)
 
         if target_gz_dir is None:
             return
 
         for path in target_paths:
-            with log_around(
+            with log_time(
                 verbose,
                 start=f"Compressing `{path.name}` into gzip",
-                end=lambda path=path: (
+                end=lambda m, path=path: (
                     f"Finished compressing `{path.name}` "
-                    f"in {measurement.total_seconds:.2f} seconds"
+                    f"in {m.total_seconds:.2f} seconds"
                 ),
             ):
-                with measure_time() as measurement:
-                    compress_to_gzip(path, target_gz_dir)
+                compress_to_gzip(path, target_gz_dir)
 
     return wrapped
 

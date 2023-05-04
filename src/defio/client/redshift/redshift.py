@@ -13,8 +13,7 @@ from defio.client.utils import get_tables_to_load
 from defio.dataset import Dataset
 from defio.infra.project.output import REDSHIFT_KEY_PREFIX
 from defio.sql.schema import Table
-from defio.utils.logging import log_around
-from defio.utils.time import measure_time
+from defio.utils.time import log_time
 
 # TODO: Parameterize
 _REDSHIFT_TABLE_IMPORT_FROM_S3: Final = """
@@ -64,45 +63,43 @@ class RedshiftClient(PostgresClient):
         """
 
         async def load(table: Table) -> None:
-            with log_around(
+            with log_time(
                 verbose,
                 start=f"Loading table `{table.name}` from S3",
-                end=lambda: (
+                end=lambda m: (
                     f"Finished loading table `{table.name}` "
-                    f"in {measurement.elapsed_time.total_seconds():.2f} seconds"
+                    f"in {m.elapsed_time.total_seconds():.2f} seconds"
                 ),
             ):
-                with measure_time() as measurement:
-                    async with await self.connect() as aconn:
+                async with await self.connect() as aconn:
+                    await aconn.execute_one(
+                        _REDSHIFT_TABLE_IMPORT_FROM_S3.format(
+                            table_name=table.name,
+                            bucket_name=bucket_name,
+                            object_key=f"{dataset.name}/{table.name}.tsv.gz",
+                            region_name=region_name,
+                            iam_role_arn=iam_role_arn,
+                        )
+                    )
+
+                    # Optionally update the table statistics
+                    if update_statistics:
                         await aconn.execute_one(
-                            _REDSHIFT_TABLE_IMPORT_FROM_S3.format(
-                                table_name=table.name,
-                                bucket_name=bucket_name,
-                                object_key=f"{dataset.name}/{table.name}.tsv.gz",
-                                region_name=region_name,
-                                iam_role_arn=iam_role_arn,
-                            )
+                            _REDSHIFT_VACUUM_ANALYZE.format(table_name=table.name)
                         )
 
-                        # Optionally update the table statistics
-                        if update_statistics:
-                            await aconn.execute_one(
-                                _REDSHIFT_VACUUM_ANALYZE.format(table_name=table.name)
-                            )
-
-        with log_around(
+        with log_time(
             verbose,
             start=f"Loading dataset `{dataset.name}` from S3\n---",
-            end=lambda: (
+            end=lambda m: (
                 f"---\nFinished loading dataset `{dataset.name}` "
-                f"in {measurement.elapsed_time.total_seconds():.2f} seconds"
+                f"in {m.elapsed_time.total_seconds():.2f} seconds"
             ),
         ):
-            with measure_time() as measurement:
-                # Load tables concurrently
-                async with asyncio.TaskGroup() as tg:
-                    for table in get_tables_to_load(dataset, tables_to_load):
-                        tg.create_task(load(table))
+            # Load tables concurrently
+            async with asyncio.TaskGroup() as tg:
+                for table in get_tables_to_load(dataset, tables_to_load):
+                    tg.create_task(load(table))
 
 
 @final

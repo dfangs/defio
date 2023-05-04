@@ -17,8 +17,7 @@ from defio.dataset.column_stats import (
     RawStringColumnStats,
 )
 from defio.sql.schema import Column, Table
-from defio.utils.logging import log_around
-from defio.utils.time import measure_time
+from defio.utils.time import log_time
 
 if TYPE_CHECKING:
     from defio.dataset import Dataset
@@ -80,21 +79,20 @@ class TableStats:
         Compute the stats of the given table (i.e. all of the column stats)
         based on the given data.
         """
-        with log_around(
+        with log_time(
             verbose,
             start=f"Computing the stats for table `{table.name}`",
-            end=lambda: (
+            end=lambda m: (
                 f"Finished computing the stats for table `{table.name}` "
-                f"in {measurement.total_seconds:.2f} seconds"
+                f"in {m.total_seconds:.2f} seconds"
             ),
         ):
-            with measure_time() as measurement:
-                return TableStats(
-                    {
-                        column: ColumnStats.from_series(df[column.name], column)
-                        for column in table.columns
-                    }
-                )
+            return TableStats(
+                {
+                    column: ColumnStats.from_series(df[column.name], column)
+                    for column in table.columns
+                }
+            )
 
     @staticmethod
     def from_list(data: list[dict[str, Any]]) -> TableStats:
@@ -164,26 +162,25 @@ class DataStats:
         Raises an `ValueError` if any of the tables cannot be loaded,
         or if the table statistics cannot be computed.
         """
-        with log_around(
+        with log_time(
             verbose,
             start=f"Computing the stats for dataset `{dataset.name}`\n---",
-            end=lambda: (
+            end=lambda m: (
                 f"---\nFinished computing the stats for dataset `{dataset.name}` "
-                f"in {measurement.total_seconds:.2f} seconds"
+                f"in {m.total_seconds:.2f} seconds"
             ),
         ):
-            with measure_time() as measurement:
-                if concurrent:
-                    with mp.Pool() as pool:
-                        stats = pool.starmap(
-                            DataStats._compute_table_stats,
-                            zip(repeat(dataset), dataset.tables, repeat(verbose)),
-                        )
-                else:
-                    stats = [
-                        DataStats._compute_table_stats(dataset, table, verbose)
-                        for table in dataset.tables
-                    ]
+            if concurrent:
+                with mp.Pool() as pool:
+                    stats = pool.starmap(
+                        DataStats._compute_table_stats,
+                        zip(repeat(dataset), dataset.tables, repeat(verbose)),
+                    )
+            else:
+                stats = [
+                    DataStats._compute_table_stats(dataset, table, verbose)
+                    for table in dataset.tables
+                ]
 
         return DataStats(dict(zip(dataset.tables, stats)))
 
