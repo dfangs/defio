@@ -22,13 +22,13 @@ class User:
 
     @staticmethod
     def random() -> User:
-        """Returns a new `User` with a random UUID and no label."""
+        """Returns a new user with a random UUID and no label."""
         return User(uuid=uuid4())
 
     @staticmethod
     def with_label(label: str) -> User:
         """
-        Creates a new `User` with a random UUID and the given `label`.
+        Creates a new user with a random UUID and the given label.
 
         For clarity, while a user's label may technically be an integer,
         this method only accepts string labels. If possible, integer
@@ -38,7 +38,7 @@ class User:
 
     def relabel(self, label: str | int) -> User:
         """
-        Returns a new `user` with the same UUID but relabeled into
-        the given `label`.
+        Returns a new user with the same UUID but relabeled into
+        the given label.
         """
         return User(uuid=self.uuid, label=label)
