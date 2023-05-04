@@ -1,14 +1,14 @@
 import time
+from datetime import datetime, timedelta
 from typing import Final
 from unittest.mock import MagicMock, Mock, call
 
-import pendulum
 import pytest
 from pytest_mock import MockerFixture
 
 from defio.utils.time import TimeMeasurement, log_time, measure_time
 
-CURRENT_TIME: Final = pendulum.datetime(year=2023, month=3, day=12)
+CURRENT_TIME: Final = datetime(year=2023, month=3, day=12)
 SECONDS_TO_MICROSECONDS: Final = 1_000_000
 
 
@@ -43,7 +43,7 @@ class TestTimeMeasurement:
 
         # End time should be measured using the given `timer()` function
         # up to microsecond resolution
-        expected_end_time = CURRENT_TIME.add(
+        expected_end_time = CURRENT_TIME + timedelta(
             microseconds=int(
                 (end_time_benchmark - start_time_benchmark) * SECONDS_TO_MICROSECONDS
             )
@@ -86,7 +86,7 @@ class TestMeasureTime:
 
         assert measurement.start_time == CURRENT_TIME
 
-        expected_end_time = CURRENT_TIME.add(
+        expected_end_time = CURRENT_TIME + timedelta(
             microseconds=int(
                 (end_time_benchmark - start_time_benchmark) * SECONDS_TO_MICROSECONDS
             )

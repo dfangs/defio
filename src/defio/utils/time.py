@@ -4,13 +4,12 @@ import asyncio
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from typing import final
 
-import pendulum
 from attrs import define
-from pendulum import UTC, DateTime, Period
 
-from defio.utils.logging import log_around  # type: ignore
+from defio.utils.logging import log_around
 
 _SECONDS_TO_MICROSECONDS = 1_000_000
 
@@ -22,13 +21,13 @@ class TimeMeasurement:
     Represents a measurement of some time interval up to microsecond resolution.
     """
 
-    start_time: DateTime
+    start_time: datetime
     _start_time_benchmark: float
     _end_time_benchmark: float | None
     _timer: Callable[[], float]
 
     def __init__(
-        self, /, *, start_time: DateTime, timer: Callable[[], float] = time.perf_counter
+        self, /, *, start_time: datetime, timer: Callable[[], float] = time.perf_counter
     ) -> None:
         # Get actual time from the input
         self.start_time = start_time
@@ -50,7 +49,7 @@ class TimeMeasurement:
         self._end_time_benchmark = self._timer()
 
     @property
-    def end_time(self) -> DateTime:
+    def end_time(self) -> datetime:
         """
         Returns the end time of this measurement.
 
@@ -59,7 +58,7 @@ class TimeMeasurement:
         if self._end_time_benchmark is None:
             raise ValueError("Measurement has not finished yet")
 
-        return self.start_time.add(
+        return self.start_time + timedelta(
             microseconds=int(
                 (self._end_time_benchmark - self._start_time_benchmark)
                 * _SECONDS_TO_MICROSECONDS
@@ -67,7 +66,7 @@ class TimeMeasurement:
         )
 
     @property
-    def elapsed_time(self) -> Period:
+    def elapsed_time(self) -> timedelta:
         """
         Returns the elapsed time between the start time and end time
         of this time measurement.
@@ -137,9 +136,9 @@ def log_time(
             yield
 
 
-def get_current_time() -> DateTime:
+def get_current_time() -> datetime:
     """Returns the current time in UTC."""
-    return pendulum.now(tz=UTC)
+    return datetime.now(tz=UTC)
 
 
 def get_event_loop_time() -> float:

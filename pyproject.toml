@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "Defio: Instance-Optimized Fusion of AWS Database Services"
 authors = ["dfangs <dfanggohans@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "defio", from = "src" }]                          # Needed for src-based layout
+# Needed for src-based layout
+packages = [{ include = "defio", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -17,7 +18,6 @@ psycopg = { extras = ["binary"], version = "^3.1.8" }
 pglast = "^5.1"
 numpy = "^1.24.3"
 pandas = "^2.0.1"
-pendulum = "^2.1.2"
 humanize = "^4.6.0"
 aiobotocore = "^2.5.0"
 types-aiobotocore = { extras = ["s3"], version = "^2.5.0.post2" }
@@ -69,18 +69,17 @@ good-names = [
     "j",
     "k",   # `for k, v in map.items()`
     "v",
-    "ex",
-    "Run",
     "_",
+    "at",
+    "id",
     "exc", # Exception
     "eg",  # Exception group
-    "at",
     "f",   # File handle
     "fp",  # File pointer
     "p",   # Probability
-    "id",
     "sg",  # Security group
     "tg",  # asyncio `TaskGroup`
+    "df",  # DataFrame
 ]
 
 [tool.pylint.'FORMAT']
@@ -97,8 +96,10 @@ disable = [
 
     # False positives caused by `attrs`
     # See https://github.com/ComPWA/ampform/blob/main/.pylintrc for reference
-    "no-member",       # Conflict: `Mapping` + `attrs.field()` + `map.items()`
-    "not-an-iterable", # Conflict: `Sequence` + `attrs.field(converter=...)`
+    "not-an-iterable",             # Conflict: `Sequence` + `attrs.field(converter=...)`
+    "no-member",                   # Conflict: `Mapping` + `attrs.field()` + `map.items()`
+    "unsupported-membership-test", # Conflict: `Mapping` + `attrs.field()` + 'in'
+    "unsubscriptable-object",      # Conflict: `Mapping` + `attrs.field()` + '[]'
 ]
 
 [tool.black]
