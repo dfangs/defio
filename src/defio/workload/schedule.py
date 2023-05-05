@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import itertools
 from abc import abstractmethod
-from collections.abc import Iterator
 from datetime import datetime, timedelta
 from typing import Protocol, final, overload
 
 from attrs import define
 from typing_extensions import override
 
-from defio.utils.generator import ImmutableGenerator
 from defio.utils.time import get_current_time
 
 
@@ -24,11 +21,11 @@ class Schedule(Protocol):
     @abstractmethod
     def time_until_next(self) -> timedelta:
         """
-        Returns the remaining time in seconds until the next event where
-        the schedule is fired, or zero if the schedule has no upcoming event
-        in the future (which means, present time also returns zero).
+        Returns the remaining time until the next event in which
+        the schedule is fired.
 
-        Note that the returned `timedelta` must be nonnegative.
+        If the last event of the schedule is already in the past,
+        the return value will be negative.
         """
         raise NotImplementedError
 
@@ -44,7 +41,7 @@ class Once(Schedule):
 
     @override
     def time_until_next(self) -> timedelta:
-        return max(self.at - get_current_time(), timedelta(0))
+        return self.at - get_current_time()
 
     @staticmethod
     def now() -> Once:
@@ -62,12 +59,15 @@ class Once(Schedule):
 class Repeat(Schedule):
     """
     Schedules an event to repeat every `interval` period of time,
-    starting from `start_time`, ending at `end_time`.
+    starting from `start_time` and ending at `end_time`.
     """
 
     interval: timedelta
     start_time: datetime
     end_time: datetime = datetime.max
+
+    def __attrs_post_init__(self) -> None:
+        assert self.start_time <= self.end_time
 
     @override
     def time_until_next(self) -> timedelta:
@@ -77,28 +77,34 @@ class Repeat(Schedule):
         if current_time <= self.start_time:
             return self.start_time - current_time
 
-        # Case 2: Schedule is fully completed
+        # Case 2: Schedule has ended
         if current_time > self.end_time:
-            return timedelta(0)
+            return self.end_time - current_time
 
-        # Case 3: Schedule in progress
+        # Case 3: Schedule is in progress
         elapsed_time = current_time - self.start_time
         time_since_last_event = elapsed_time % self.interval
-        time_until_next_event = self.interval - time_since_last_event
+        time_until_next_event = (self.interval - time_since_last_event) % self.interval
 
         return min(time_until_next_event, self.end_time - current_time)
 
     @overload
     @staticmethod
     def starting_now(*, interval: timedelta, num_repeat: int) -> Repeat:
-        ...
+        """
+        Returns a `Repeat` schedule that starts at the current time
+        and ends after `num_repeat` repeats.
+        """
 
     @overload
     @staticmethod
     def starting_now(
         *, interval: timedelta, end_time: datetime = datetime.max
     ) -> Repeat:
-        ...
+        """
+        Returns a `Repeat` schedule that starts at the current time
+        and ends at `end_time`.
+        """
 
     @staticmethod
     def starting_now(
@@ -107,10 +113,6 @@ class Repeat(Schedule):
         end_time: datetime = datetime.max,
         num_repeat: int | None = None,
     ) -> Repeat:
-        """
-        Returns a `Repeat` schedule that starts at the current time,
-        and ends either at `end_time` or after `num_repeat` repeats.
-        """
         start_time = get_current_time()
 
         # First overload: `num_repeat`
@@ -131,90 +133,3 @@ class Repeat(Schedule):
             start_time=start_time,
             end_time=end_time,
         )
-
-
-class ScheduleGenerator(ImmutableGenerator[Schedule]):
-    """
-    Abstract base class for an immutable "generator" that yields
-    a (potentially unbounded) sequence of schedules.
-
-    Note that the two default implementing classes are made private,
-    but they can be constructed via the factory methods on this class.
-    This is a matter of preference; I think this improves readability.
-    """
-
-    @override
-    @abstractmethod
-    def __iter__(self) -> Iterator[Schedule]:
-        raise NotImplementedError
-
-    @staticmethod
-    def fixed(*, schedule: Schedule, max_items: int | None) -> ScheduleGenerator:
-        """
-        Returns a generator that always yields the given `schedule` up to
-        `max_items` times (or unbounded if it is `None`).
-        """
-        return _FixedScheduleGenerator(schedule=schedule, max_items=max_items)
-
-    @staticmethod
-    def evenly_spaced(
-        *,
-        interval: timedelta,
-        start_time: datetime | None = None,
-        end_time: datetime = datetime.max,
-        max_items: int | None = None,
-    ) -> ScheduleGenerator:
-        """
-        Returns a generator that yields consecutive `Once` schedules
-        at evenly-spaced interval up to `max_items` times (or unbounded
-        if it is `None`), starting from `start_time` to `end_time`.
-
-        If `start_time` is `None`, set it to the current time at construction.
-        """
-        return _EvenlySpacedScheduleGenerator(
-            interval=interval,
-            start_time=(start_time if start_time is not None else get_current_time()),
-            end_time=end_time,
-            max_items=max_items,
-        )
-
-
-@final
-@define(frozen=True)
-class _FixedScheduleGenerator(ScheduleGenerator):
-    """
-    Schedule generator implementation that yields a fixed schedule.
-    """
-
-    schedule: Schedule
-    max_items: int | None
-
-    @override
-    def __iter__(self) -> Iterator[Schedule]:
-        if self.max_items is None:
-            while True:
-                yield self.schedule
-        else:
-            for _ in range(self.max_items):
-                yield self.schedule
-
-
-@final
-@define(frozen=True)
-class _EvenlySpacedScheduleGenerator(ScheduleGenerator):
-    """
-    Schedule generator implementation that yields evenly-spaced schedules.
-    """
-
-    interval: timedelta
-    start_time: datetime
-    end_time: datetime
-    max_items: int | None
-
-    @override
-    def __iter__(self) -> Iterator[Schedule]:
-        count_range = (
-            range(self.max_items) if self.max_items is not None else itertools.count()
-        )
-        for i in count_range:
-            yield Once(at=self.start_time + i * self.interval)
