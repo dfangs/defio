@@ -8,6 +8,7 @@ from attrs import define, field
 from typing_extensions import override
 
 from defio.sqlgen.generator import SqlGenerator
+from defio.utils.attrs import to_tuple
 from defio.utils.generator import ImmutableGenerator
 from defio.utils.time import get_current_time
 from defio.workload.schedule import Once, Schedule
@@ -124,8 +125,9 @@ class QueryReport(Generic[_T]):
         return self.executed_time + self.execution_time
 
 
-# Avoid using `Iterable[Query]` since it complicates immutable design.
+# Avoid using `Iterable[...]` since it complicates immutable design.
 # Specifically, we can't simply defensive copy all iterables--what if they're unbounded?
+SqlSource: TypeAlias = Sequence[str] | SqlGenerator
 QuerySource: TypeAlias = Sequence[Query] | ImmutableGenerator[Query]
 
 
@@ -142,7 +144,7 @@ class QueryGenerator(ImmutableGenerator[Query]):
     `SqlGenerator` shouldn't be used to generate recurring queries.
     """
 
-    _sql_generator: SqlGenerator = field(alias="sql_generator")
+    _sql_source: SqlSource = field(converter=to_tuple, alias="sql_source")
     _fixed_time: Once | None = field(default=None, alias="fixed_time")
     _interval: timedelta | None = field(default=None, alias="interval")
 
@@ -152,37 +154,37 @@ class QueryGenerator(ImmutableGenerator[Query]):
     @override
     def __iter__(self) -> Iterator[Query]:
         if self._fixed_time is not None:
-            for sql in self._sql_generator:
+            for sql in self._sql_source:
                 yield Query(sql, self._fixed_time)
             return
 
         assert self._interval is not None
 
         start_time = get_current_time()
-        for i, sql in enumerate(self._sql_generator):
+        for i, sql in enumerate(self._sql_source):
             yield Query(sql, Once(start_time + i * self._interval))
 
     @staticmethod
-    def with_fixed_time(sql_generator: SqlGenerator, schedule: Once) -> QueryGenerator:
+    def with_fixed_time(sql_source: SqlSource, schedule: Once) -> QueryGenerator:
         """
         Creates a query generator that yields queries with the given
         fixed schedule.
         """
-        return QueryGenerator(sql_generator=sql_generator, fixed_time=schedule)
+        return QueryGenerator(sql_source=sql_source, fixed_time=schedule)
 
     @staticmethod
     def with_fixed_interval(
-        sql_generator: SqlGenerator, interval: timedelta
+        sql_source: SqlSource, interval: timedelta
     ) -> QueryGenerator:
         """
         Creates a query generator that yields queries scheduled at
         evenly-spaced interval starting from the first yield.
         """
-        return QueryGenerator(sql_generator=sql_generator, interval=interval)
+        return QueryGenerator(sql_source=sql_source, interval=interval)
 
     @staticmethod
     def with_fixed_rate(
-        sql_generator: SqlGenerator, queries_per_second: float
+        sql_source: SqlSource, queries_per_second: float
     ) -> QueryGenerator:
         """
         Creates a query generator that yields queries with evenly-spaced
@@ -190,6 +192,6 @@ class QueryGenerator(ImmutableGenerator[Query]):
         `queries_per_second` queries are scheduled within a one-second interval.
         """
         return QueryGenerator(
-            sql_generator=sql_generator,
+            sql_source=sql_source,
             interval=timedelta(seconds=1) / queries_per_second,
         )

@@ -62,10 +62,10 @@ class DummySqlGenerator(SqlGenerator):
 
 class TestQueryGenerator:
     def test_fixed_time(self) -> None:
-        sql_generator = DummySqlGenerator(num_items := 10)
+        sql_list = list(DummySqlGenerator(num_items := 10))
         schedule = Once(at=datetime(year=2023, month=5, day=2))
 
-        query_generator = QueryGenerator.with_fixed_time(sql_generator, schedule)
+        query_generator = QueryGenerator.with_fixed_time(sql_list, schedule)
 
         # Query generators can be iterated multiple times
         for _ in range(NUM_ITERS):
