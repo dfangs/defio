@@ -1,9 +1,11 @@
+from datetime import UTC, datetime
 from typing import TypeVar
+from zoneinfo import ZoneInfo
 
 import pytest
 from immutables import Map
 
-from defio.utils.attrs import to_map, to_tuple
+from defio.utils.attrs import to_datetime, to_map, to_tuple
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -62,3 +64,20 @@ def test_to_map_unconverted(arg: dict[K, V] | U, expected: Map[K, V] | U) -> Non
 )
 def test_to_map_converted(arg: dict[K, V] | U, expected: Map[K, V] | U) -> None:
     assert to_map(arg) == expected
+
+
+@pytest.mark.parametrize(
+    "dt",
+    [
+        (datetime(year=2023, month=3, day=12, tzinfo=ZoneInfo("Asia/Jakarta"))),
+        (datetime(year=2023, month=5, day=2, tzinfo=UTC)),
+    ],
+)
+def test_to_datetime_unconverted(dt: datetime) -> None:
+    assert to_datetime(dt) == dt
+
+
+def test_to_datetime_converted() -> None:
+    actual = to_datetime(datetime(year=2023, month=5, day=2))
+    expected = datetime(year=2023, month=5, day=2, tzinfo=UTC)
+    assert actual == expected

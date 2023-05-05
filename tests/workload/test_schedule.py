@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from itertools import count
 from unittest.mock import MagicMock
 
@@ -10,7 +10,7 @@ from defio.workload.schedule import Once, Repeat
 
 @pytest.fixture(name="initial_time")
 def fixture_initial_time() -> datetime:
-    return datetime(year=2023, month=3, day=12)
+    return datetime(year=2023, month=3, day=12, tzinfo=UTC)
 
 
 @pytest.fixture(name="current_time_diff")
@@ -35,7 +35,7 @@ class TestOnce:
         initial_time: datetime,
         current_time_diff: timedelta,
     ) -> None:
-        scheduled_time = datetime(year=2023, month=5, day=2)
+        scheduled_time = datetime(year=2023, month=5, day=2, tzinfo=UTC)
 
         TestOnce._assert_once(
             once=Once(at=scheduled_time),

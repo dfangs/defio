@@ -150,3 +150,12 @@ def get_event_loop_time() -> float:
     of asyncio.
     """
     return asyncio.get_running_loop().time()
+
+
+def is_datetime_offset_aware(dt: datetime) -> bool:
+    """
+    Returns `True` iff the given datetime object is offset-aware.
+
+    Reference: https://stackoverflow.com/a/27596917
+    """
+    return dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None

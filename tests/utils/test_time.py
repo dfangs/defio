@@ -1,20 +1,32 @@
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Final
 from unittest.mock import MagicMock, Mock, call
+from zoneinfo import ZoneInfo
 
 import pytest
 from pytest_mock import MockerFixture
 
-from defio.utils.time import TimeMeasurement, log_time, measure_time
+from defio.utils.time import (
+    TimeMeasurement,
+    is_datetime_offset_aware,
+    log_time,
+    measure_time,
+)
 
-CURRENT_TIME: Final = datetime(year=2023, month=3, day=12)
 SECONDS_TO_MICROSECONDS: Final = 1_000_000
 
 
-@pytest.fixture(name="_mock_current_time")
-def fixture_mock_current_time(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("defio.utils.time.get_current_time", return_value=CURRENT_TIME)
+@pytest.fixture(name="current_time")
+def fixture_current_time() -> datetime:
+    return datetime(year=2023, month=3, day=12)
+
+
+@pytest.fixture(name="_mock_get_current_time")
+def fixture_mock_get_current_time(
+    mocker: MockerFixture, current_time: datetime
+) -> MagicMock:
+    return mocker.patch("defio.utils.time.get_current_time", return_value=current_time)
 
 
 @pytest.fixture(name="mock_timer")
@@ -28,12 +40,17 @@ def fixture_mock_print() -> Mock:
 
 
 class TestTimeMeasurement:
-    def test_start_time(self, _mock_current_time: MagicMock) -> None:
+    def test_start_time(
+        self, _mock_get_current_time: MagicMock, current_time: datetime
+    ) -> None:
         measurement = TimeMeasurement.start()
-        assert measurement.start_time == CURRENT_TIME
+        assert measurement.start_time == current_time
 
     def test_end_time(
-        self, _mock_current_time: MagicMock, mock_timer: MagicMock
+        self,
+        _mock_get_current_time: MagicMock,
+        current_time: datetime,
+        mock_timer: MagicMock,
     ) -> None:
         measurement = TimeMeasurement.start(timer=mock_timer)
         start_time_benchmark = mock_timer.spy_return
@@ -43,7 +60,7 @@ class TestTimeMeasurement:
 
         # End time should be measured using the given `timer()` function
         # up to microsecond resolution
-        expected_end_time = CURRENT_TIME + timedelta(
+        expected_end_time = current_time + timedelta(
             microseconds=int(
                 (end_time_benchmark - start_time_benchmark) * SECONDS_TO_MICROSECONDS
             )
@@ -76,7 +93,12 @@ class TestTimeMeasurement:
 
 
 class TestMeasureTime:
-    def test_ok(self, _mock_current_time: MagicMock, mock_timer: MagicMock) -> None:
+    def test_ok(
+        self,
+        _mock_get_current_time: MagicMock,
+        current_time: datetime,
+        mock_timer: MagicMock,
+    ) -> None:
         with measure_time(timer=mock_timer) as measurement:
             # `timer()` should be called once before entering the context...
             start_time_benchmark = mock_timer.spy_return
@@ -84,9 +106,9 @@ class TestMeasureTime:
         # ... and once after exiting the context
         end_time_benchmark = mock_timer.spy_return
 
-        assert measurement.start_time == CURRENT_TIME
+        assert measurement.start_time == current_time
 
-        expected_end_time = CURRENT_TIME + timedelta(
+        expected_end_time = current_time + timedelta(
             microseconds=int(
                 (end_time_benchmark - start_time_benchmark) * SECONDS_TO_MICROSECONDS
             )
@@ -118,3 +140,15 @@ def test_log_time(mock_print: Mock, mock_timer: MagicMock) -> None:
     )
 
     mock_print.assert_has_calls([call(start), call(str(elapsed_time_seconds))])
+
+
+@pytest.mark.parametrize(
+    "arg, expected",
+    [
+        (datetime(year=2023, month=3, day=12, tzinfo=ZoneInfo("Asia/Jakarta")), True),
+        (datetime(year=2023, month=5, day=2, tzinfo=UTC), True),
+        (datetime(year=2023, month=5, day=2), False),
+    ],
+)
+def test_offset_aware(arg: datetime, expected: bool) -> None:
+    assert is_datetime_offset_aware(arg) == expected

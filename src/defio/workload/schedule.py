@@ -4,9 +4,10 @@ from abc import abstractmethod
 from datetime import datetime, timedelta
 from typing import Protocol, final, overload
 
-from attrs import define
+from attrs import define, field
 from typing_extensions import override
 
+from defio.utils.attrs import to_datetime
 from defio.utils.time import get_current_time
 
 
@@ -16,6 +17,11 @@ class Schedule(Protocol):
 
     Conceptually similar to a cron expression, but designed
     to be simpler for typical database workloads.
+
+    NOTE:
+    For all implementing classes, all `datetime` objects in the
+    method arguments will be automatically converted to offset-aware
+    (which defaults to UTC) if they are not one already.
     """
 
     @abstractmethod
@@ -37,7 +43,7 @@ class Once(Schedule):
     Schedules an event at one particular time.
     """
 
-    at: datetime
+    at: datetime = field(converter=to_datetime)
 
     @override
     def time_until_next(self) -> timedelta:
@@ -63,8 +69,8 @@ class Repeat(Schedule):
     """
 
     interval: timedelta
-    start_time: datetime
-    end_time: datetime = datetime.max
+    start_time: datetime = field(converter=to_datetime)
+    end_time: datetime = field(default=datetime.max, converter=to_datetime)
 
     def __attrs_post_init__(self) -> None:
         assert self.start_time <= self.end_time
