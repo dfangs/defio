@@ -1,6 +1,6 @@
 import asyncio
 import re
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
 from itertools import pairwise
 from typing import Final, cast, final
@@ -25,13 +25,19 @@ NUM_QUERIES = 10
 
 
 @final
-class SimpleConnection(AsyncConnection):
+@define(frozen=True)
+class SpyConnection(AsyncConnection):
+    slow: bool
+
     @override
     async def close(self) -> None:
         ...
 
     @override
     async def execute(self, query: str) -> AsyncIterator[int]:
+        if self.slow:
+            await asyncio.sleep(TIMEOUT_SECONDS)
+
         match = SELECT_QUERY_REGEX.fullmatch(query)
         assert match is not None
 
@@ -41,22 +47,24 @@ class SimpleConnection(AsyncConnection):
 @final
 @define
 class SpyClient(AsyncClient[int]):
-    num_allowed_connections: int | None = None
-    is_blocked: asyncio.Event = field(factory=asyncio.Event)
+    max_num_connections: int | None = None
+    slow: bool = False
+
+    is_maxed: asyncio.Event = field(factory=asyncio.Event)
     _connection_count: int = field(default=0, init=False)
 
     @override
     async def connect(self) -> AsyncConnection[int]:
         if (
-            self.num_allowed_connections is not None
-            and self._connection_count >= self.num_allowed_connections
+            self.max_num_connections is not None
+            and self._connection_count >= self.max_num_connections
         ):
-            self.is_blocked.set()
-            await asyncio.sleep(2 * TIMEOUT_SECONDS)  # Block
+            self.is_maxed.set()
+            await asyncio.sleep(TIMEOUT_SECONDS)  # Block
             raise RuntimeError("Test should not reach here")
 
         self._connection_count += 1
-        return SimpleConnection()
+        return SpyConnection(slow=self.slow)
 
 
 @final
@@ -74,12 +82,12 @@ class SpyQueryReporter(QueryReporter[int]):
         self.is_done.set()
 
 
-@pytest.fixture(name="query_list")
-def fixture_query_list() -> Sequence[Query]:
-    return [
+@pytest.mark.asyncio
+async def test_serial_order() -> None:
+    mixed_query_source = [
         Query(
-            sql=SELECT_QUERY.format(i=i),
-            schedule=(
+            SELECT_QUERY.format(i=i),
+            (
                 # Alternate between `Once` and `Repeat`
                 Once(datetime(year=2023, month=5, day=2) + i * timedelta(seconds=1))
                 if i % 2 == 0
@@ -91,18 +99,11 @@ def fixture_query_list() -> Sequence[Query]:
         for i in range(NUM_QUERIES)
     ]
 
-
-@pytest.mark.asyncio
-async def test_serial_order(query_list: Sequence[Query]) -> None:
     async with asyncio.timeout(TIMEOUT_SECONDS):
         await run_workload(
             workload=(
                 workload := Workload.combine(
-                    [
-                        Workload.serial(query_list),
-                        Workload.serial(query_list),
-                        Workload.serial(query_list),
-                    ]
+                    Workload.serial(mixed_query_source) for _ in range(3)
                 )
             ),
             client=SpyClient(),
@@ -134,31 +135,59 @@ async def test_serial_order(query_list: Sequence[Query]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_repeat() -> None:
+async def test_concurrent() -> None:
+    query_source = [
+        Query(
+            SELECT_QUERY.format(i=0),
+            Once(datetime(year=2023, month=5, day=2)),
+        )
+    ]
+
     task = asyncio.create_task(
         run_workload(
-            workload=Workload.serial(
-                [
-                    Query(
-                        SELECT_QUERY.format(i=0),
-                        # Unbounded repeat
-                        Repeat.starting_now(
-                            interval=(repeat_interval := timedelta(milliseconds=5))
-                        ),
-                    )
-                ]
+            workload=Workload.concurrent(
+                [query_source for _ in range(2 * NUM_QUERIES)]
             ),
-            client=(client := SpyClient(num_allowed_connections=5 * NUM_QUERIES)),
+            client=(client := SpyClient(max_num_connections=NUM_QUERIES, slow=True)),
+            reporter=(reporter := SpyQueryReporter()),
+        )
+    )
+
+    async with asyncio.timeout(TIMEOUT_SECONDS):
+        # Even if the connections are slow, concurrent queries must not block
+        await client.is_maxed.wait()
+
+        # Need to cancel this so that pytest doesn't give a warning
+        task.cancel()
+        await reporter.is_done.wait()
+
+
+@pytest.mark.asyncio
+async def test_unbounded_repeat() -> None:
+    query_source = [
+        Query(
+            SELECT_QUERY.format(i=0),
+            Repeat.starting_now(
+                interval=(repeat_interval := timedelta(milliseconds=5))
+            ),
+        )
+    ]
+
+    task = asyncio.create_task(
+        run_workload(
+            workload=Workload.serial(query_source),
+            client=(client := SpyClient(max_num_connections=3 * NUM_QUERIES)),
             reporter=(reporter := SpyQueryReporter()),
         )
     )
 
     async with asyncio.timeout(TIMEOUT_SECONDS):
         # Since the query is recurring infinitely, this must resolve
-        await client.is_blocked.wait()
+        await client.is_maxed.wait()
 
         # Need to cancel this so that pytest doesn't give a warning
         task.cancel()
+        await reporter.is_done.wait()
 
     assert len(reporter.reports_by_user) == 1
     _, query_reports = reporter.reports_by_user.popitem()
@@ -185,23 +214,3 @@ async def test_repeat() -> None:
         abs(interval - repeat_interval) <= error_margin * repeat_interval
         for interval in scheduled_time_intervals
     )
-
-
-@pytest.mark.asyncio
-async def test_cancel(query_list: Sequence[Query]) -> None:
-    # num_queries > num_allowed_connections, so this will not finish
-    task = asyncio.create_task(
-        run_workload(
-            workload=Workload.serial(2 * list(query_list)),
-            client=(client := SpyClient(num_allowed_connections=NUM_QUERIES)),
-            reporter=(reporter := SpyQueryReporter()),
-        )
-    )
-
-    await client.is_blocked.wait()
-
-    # Cancel the workload midway
-    task.cancel()
-
-    async with asyncio.timeout(TIMEOUT_SECONDS):
-        await reporter.is_done.wait()
