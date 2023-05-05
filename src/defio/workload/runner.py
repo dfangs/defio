@@ -1,120 +1,193 @@
-"""
-NOTE: No need to handle cancellation here.
-"""
-
 import asyncio
-from asyncio import PriorityQueue, Queue, Task
-from typing import Any, Final
+import math
+from asyncio import PriorityQueue, Queue, Task, TaskGroup
+from typing import Final, Literal, TypeVar, assert_never
 
 from defio.client import AsyncClient
+from defio.utils.queue import PrioritizedItem, QueueSignal
 from defio.utils.time import get_current_time, get_event_loop_time, measure_time
 from defio.workload import Workload
-from defio.workload.query import CompletedQuery, PendingQuery, Queries, Query, User
-from defio.workload.reporter import QueryReporter
+from defio.workload.query import Query, QueryReport, QuerySource, ScheduledQuery, User
+from defio.workload.reporter import BlankQueryReporter, QueryReporter
+from defio.workload.schedule import Repeat
 
-_MAX_PENDING_QUEUE_SIZE: Final[int] = 10
+_T = TypeVar("_T")
+
+# Don't consume the queries all at once
+_MAX_SCHEDULED_QUEUE_SIZE: Final[int] = 10
 
 
 async def run_workload(
-    workload: Workload, client: AsyncClient[Any], reporter: QueryReporter
+    workload: Workload,
+    client: AsyncClient[_T],
+    reporter: QueryReporter[_T] = BlankQueryReporter(),
 ) -> None:
     """
-    Run the workload asynchronously with the given client.
-    `client` must already be connected.
+    Runs the given workload asynchronously with the given client and reports
+    the completion of each executed query using the given reporter.
     """
     background_tasks = set[Task[None]]()
-    completed_queue = Queue[CompletedQuery]()
+    completed_queue = Queue[QueryReport[_T] | Literal[QueueSignal.ONE_DONE]]()
 
-    for user, queries in workload:
-        pending_queue = PriorityQueue[tuple[float, PendingQuery]](
-            maxsize=_MAX_PENDING_QUEUE_SIZE
-        )
+    async with TaskGroup() as tg:
+        for user, query_source in workload:
+            scheduled_queue = PriorityQueue[
+                PrioritizedItem[ScheduledQuery | Literal[QueueSignal.SHUTDOWN]]
+            ](maxsize=_MAX_SCHEDULED_QUEUE_SIZE)
 
-        # Keep references to the background tasks
-        # See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+            # Keep references to the background tasks
+            # See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+            background_tasks |= {
+                tg.create_task(
+                    _initial_scheduler_worker(user, query_source, scheduled_queue)
+                ),
+                tg.create_task(
+                    _executor_worker(scheduled_queue, completed_queue, client)
+                ),
+            }
+
         background_tasks |= {
-            asyncio.create_task(
-                _initial_scheduler_worker(user, queries, pending_queue)
-            ),
-            asyncio.create_task(
-                _executor_worker(pending_queue, completed_queue, client)
-            ),
+            tg.create_task(_reporter_worker(completed_queue, len(workload), reporter))
         }
 
-    # Ensure the removal of the saved references
-    for task in background_tasks:
-        task.add_done_callback(background_tasks.discard)
-
-    await _reporter_worker(completed_queue, reporter)
+        # Ensure the removal of the saved references
+        for task in background_tasks:
+            task.add_done_callback(background_tasks.discard)
 
 
 async def _process_single_query(
-    user: User, query: Query, pending_queue: PriorityQueue[tuple[float, PendingQuery]]
+    user: User,
+    query: Query,
+    scheduled_queue: PriorityQueue[
+        PrioritizedItem[ScheduledQuery | Literal[QueueSignal.SHUTDOWN]]
+    ],
 ) -> None:
     processed_time = get_current_time()
 
-    # Use the event loop time for scheduling purposes
-    # since it guarantees monotonicity
-    scheduled_time = (
+    # Use the event loop time for scheduling purposes since it guarantees monotonicity
+    scheduled_internal_time = (
         get_event_loop_time() + query.schedule.time_until_next().total_seconds()
     )
 
-    await pending_queue.put(
-        (
-            scheduled_time,
-            PendingQuery(user=user, query=query, processed_time=processed_time),
+    await scheduled_queue.put(
+        PrioritizedItem(
+            scheduled_internal_time,
+            query.start(
+                user=user,
+                processed_time=processed_time,
+                scheduled_time=processed_time + query.schedule.time_until_next(),
+            ),
         )
     )
 
 
 async def _initial_scheduler_worker(
     user: User,
-    queries: Queries,
-    pending_queue: PriorityQueue[tuple[float, PendingQuery]],
+    query_source: QuerySource,
+    scheduled_queue: PriorityQueue[
+        PrioritizedItem[ScheduledQuery | Literal[QueueSignal.SHUTDOWN]]
+    ],
 ) -> None:
-    for query in queries:
-        await _process_single_query(user, query, pending_queue)
+    """Worker for scheduling queries from the given query source."""
+    for query in query_source:
+        # All queries are guaranteed to be executed at least once
+        await _process_single_query(user, query, scheduled_queue)
+
+    await scheduled_queue.put(PrioritizedItem(math.inf, QueueSignal.SHUTDOWN))
 
 
 async def _executor_worker(
-    pending_queue: PriorityQueue[tuple[float, PendingQuery]],
-    completed_queue: Queue[CompletedQuery],
-    client: AsyncClient[Any],
+    scheduled_queue: PriorityQueue[
+        PrioritizedItem[ScheduledQuery | Literal[QueueSignal.SHUTDOWN]]
+    ],
+    completed_queue: Queue[QueryReport[_T] | Literal[QueueSignal.ONE_DONE]],
+    client: AsyncClient[_T],
 ) -> None:
+    """Worker for executing scheduled queries."""
     while True:
-        scheduled_time, pending_query = await pending_queue.get()
+        queue_item = await scheduled_queue.get()
+        match queue_item.item:
+            case ScheduledQuery():
+                scheduled_internal_time = queue_item.priority
+                scheduled_query = queue_item.item
 
-        # Check the scheduled against the event loop time
+            case QueueSignal.SHUTDOWN:
+                await completed_queue.put(QueueSignal.ONE_DONE)
+                return
+
+            case _:
+                assert_never(queue_item.item)
+
+        # Wait for some time if no query is scheduled right now
         current_event_loop_time = get_event_loop_time()
-        if current_event_loop_time < scheduled_time:
-            await asyncio.sleep(scheduled_time - current_event_loop_time)
+        if current_event_loop_time < scheduled_internal_time:
+            await asyncio.sleep(scheduled_internal_time - current_event_loop_time)
 
+        # Execute the scheduled query once
         with measure_time() as measurement:
-            result = [row async for row in client.execute(pending_query.query.sql)]
+            async with await client.connect() as aconn:
+                results = [
+                    row async for row in aconn.execute(scheduled_query.query.sql)
+                ]
 
         await completed_queue.put(
-            pending_query.mark_complete(
-                result=result,
+            scheduled_query.create_report(
                 executed_time=measurement.start_time,
                 execution_time=measurement.elapsed_time,
+                results=results,
             )
         )
 
-        pending_queue.task_done()
+        scheduled_queue.task_done()
 
-        # Check for repeats
-        # TODO: Confirm correctness
-        if pending_query.query.schedule.time_until_next().total_seconds() > 0:
+        # Check if the query should be re-scheduled
+        if (
+            isinstance(schedule := scheduled_query.query.schedule, Repeat)
+            and schedule.time_until_next().total_seconds() >= 0
+        ):
             await _process_single_query(
-                pending_query.user, pending_query.query, pending_queue
+                scheduled_query.user, scheduled_query.query, scheduled_queue
             )
 
 
 async def _reporter_worker(
-    completed_queue: Queue[CompletedQuery], reporter: QueryReporter
+    completed_queue: Queue[QueryReport[_T] | Literal[QueueSignal.ONE_DONE]],
+    num_executor_workers: int,
+    reporter: QueryReporter[_T],
 ) -> None:
-    while True:
-        completed_query = await completed_queue.get()
-        await reporter.report(completed_query)
-        completed_queue.task_done()
-        # TODO: How to signal end
+    """Worker for reporting query completions."""
+    try:
+        num_executor_workers_done = 0
+
+        while True:
+            match queue_item := await completed_queue.get():
+                case QueryReport() as query_report:
+                    await reporter.report(query_report)
+                    completed_queue.task_done()
+
+                case QueueSignal.ONE_DONE:
+                    num_executor_workers_done += 1
+                    completed_queue.task_done()
+
+                    # Finish only when all executors have finished their jobs
+                    if num_executor_workers_done == num_executor_workers:
+                        await reporter.done()
+                        return
+
+                case _:
+                    assert_never(queue_item)
+
+    except asyncio.CancelledError:
+        # In case of cancellation (e.g., by Task Group),
+        # make sure to report the remaining items
+        while not completed_queue.empty():
+            query_report = completed_queue.get_nowait()
+
+            # No need to handle special signals anymore
+            if query_report is QueueSignal.ONE_DONE:
+                continue
+
+            await reporter.report(query_report)
+
+        await reporter.done()
+        raise

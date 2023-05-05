@@ -1,32 +1,55 @@
 from abc import abstractmethod
-from typing import Protocol, final
+from typing import Any, Protocol, TypeVar, final
 
 from typing_extensions import override
 
-from htap.workload.query import CompletedQuery
+from defio.workload.query import QueryReport
+
+_T = TypeVar("_T")
 
 
-class QueryReporter(Protocol):
+class QueryReporter(Protocol[_T]):
+    """Protocol for reporting query completions."""
+
     @abstractmethod
-    async def report(self, completed_query: CompletedQuery) -> None:
+    async def report(self, query_report: QueryReport[_T]) -> None:
+        """Reports the completion of the given query."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def done(self) -> None:
+        """
+        Signals the end of a workload run, either due to all queries
+        have been processed or some exception was raised.
+        """
         raise NotImplementedError
 
 
 @final
-class PrintReporter(QueryReporter):
+class BlankQueryReporter(QueryReporter[Any]):
+    """No-op query reporter."""
+
     @override
-    async def report(
-        self, completed_query: CompletedQuery, verbose: bool = False
-    ) -> None:
-        if verbose:
-            print(completed_query)
-        else:
-            print(
-                " ".join(
-                    [
-                        f"{completed_query.user.label}:",
-                        f'"{completed_query.query.sql}"',
-                        f"({completed_query.completed_time})",
-                    ]
-                )
-            )
+    async def report(self, query_report: QueryReport[Any]) -> None:
+        ...
+
+    @override
+    async def done(self) -> None:
+        ...
+
+
+@final
+class SimpleQueryReporter(QueryReporter[Any]):
+    """Simple query reporter for demonstration and testing purposes."""
+
+    @override
+    async def report(self, query_report: QueryReport) -> None:
+        print(
+            f"[{query_report.completed_time}] "
+            f"{query_report.user.label}: "
+            f"{query_report.query.sql}"
+        )
+
+    @override
+    async def done(self) -> None:
+        print("Finished running the workload")
