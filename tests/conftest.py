@@ -44,9 +44,11 @@ def pytest_collection_modifyitems(config, items):
 ## Shared fixtures
 
 
-@pytest.fixture(name="imdb_schema")
+@pytest.fixture(name="imdb_schema", scope="module")
 def fixture_imdb_schema() -> Schema:
-    # NOTE: This fixture is shared among `sql` and `sqlgen` subpackages
+    # NOTE:
+    # This fixture is shared among `sql` and `sqlgen` subpackages
+    # Scope has to be `module` in order to allow chaining with function-scoped fixtures
     crew = Table(
         name="crew",
         columns=[
