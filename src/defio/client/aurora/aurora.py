@@ -6,7 +6,7 @@ from typing import Final, final
 from attrs import define
 from typing_extensions import override
 
-from defio.client.config import PulumiDbConfig
+from defio.client.config import PulumiDbConfig, SsmDbConfig
 from defio.client.postgres import PostgresClient
 from defio.client.utils import get_tables_to_load
 from defio.dataset import Dataset
@@ -122,6 +122,28 @@ class PulumiAuroraConfig(PulumiDbConfig):
     ) -> None:
         super().__init__(
             stack_name=stack_name,
+            key_prefix=AURORA_KEY_PREFIX,
+            db_identifier=db_identifier,
+            db_name=db_name,
+        )
+
+    @property
+    @override
+    def ssl_root_cert_path(self) -> Path:
+        return Path(__file__).parent / "aurora-ca-bundle.pem"
+
+
+@final
+@define
+class SsmAuroraConfig(SsmDbConfig):
+    """AWS SSM DB config for Amazon Aurora."""
+
+    def __init__(
+        self,
+        db_identifier: str,
+        db_name: str | None = None,
+    ) -> None:
+        super().__init__(
             key_prefix=AURORA_KEY_PREFIX,
             db_identifier=db_identifier,
             db_name=db_name,

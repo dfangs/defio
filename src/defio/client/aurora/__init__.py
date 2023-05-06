@@ -1,1 +1,1 @@
-from .aurora import AuroraClient, PulumiAuroraConfig
+from .aurora import AuroraClient, PulumiAuroraConfig, SsmAuroraConfig

@@ -4,9 +4,11 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Generic, Protocol, TypeVar, cast, final
 
+import boto3
 from attrs import define, field
 from typing_extensions import override
 
+from defio.infra.constants import PROJECT_NAME
 from defio.infra.project.output import (
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
@@ -189,6 +191,78 @@ class PulumiDbConfig(DbConfig):
         )
 
         return initial_dbname
+
+    @property
+    @override
+    @abstractmethod
+    def ssl_root_cert_path(self) -> Path | None:
+        raise NotImplementedError
+
+
+@define
+class SsmDbConfig(DbConfig):
+    """
+    Abstract base class for DB configs derived from AWS SSM Parameters.
+    """
+
+    _key_prefix: str
+    _db_identifier: str
+    _db_name: str | None = None
+
+    def __init__(
+        self,
+        key_prefix: str,
+        db_identifier: str,
+        db_name: str | None = None,
+    ) -> None:
+        self._key_prefix = key_prefix
+        self._db_identifier = db_identifier
+        self._db_name = db_name
+
+    def _get_parameter(self, parameter: str) -> str:
+        parameter_name = (
+            f"/{PROJECT_NAME}/{self._key_prefix}/{self._db_identifier}/{parameter}"
+        )
+
+        try:
+            client = boto3.client("ssm")
+            result = client.get_parameter(Name=parameter_name, WithDecryption=True)
+
+            return result["Parameter"]["Value"]
+
+        except Exception as exc:
+            raise ValueError(f"Failed to get SSM parameter `{parameter_name}`") from exc
+
+    @property
+    @override
+    def host(self) -> str:
+        return self._get_parameter(HOST_KEY_SUFFIX)
+
+    @property
+    @override
+    def port(self) -> int:
+        return int(self._get_parameter(PORT_KEY_SUFFIX))
+
+    @property
+    @override
+    def username(self) -> str:
+        return self._get_parameter(USERNAME_KEY_SUFFIX)
+
+    @property
+    @override
+    def password(self) -> str:
+        return self._get_parameter(PASSWORD_KEY_SUFFIX)
+
+    @property
+    @override
+    def dbname(self) -> str | None:
+        if self._db_name is not None:
+            return self._db_name
+
+        # This may or may not be exported by Pulumi
+        initial_dbname = self._get_parameter(INITIAL_DBNAME_KEY_SUFFIX)
+
+        return initial_dbname if initial_dbname != "" else None
 
     @property
     @override

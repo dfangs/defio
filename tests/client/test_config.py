@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import Literal
-from unittest.mock import MagicMock, Mock, call
+from typing import Literal, final
+from unittest.mock import ANY, MagicMock, Mock, call
 
 import pytest
 from pytest_mock import MockerFixture
 from typing_extensions import override
 
-from defio.client.config import PulumiDbConfig, SimpleDbConfig
+from defio.client.config import PulumiDbConfig, SimpleDbConfig, SsmDbConfig
+from defio.infra.constants import PROJECT_NAME
 from defio.infra.project.output import (
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
@@ -78,6 +79,7 @@ def test_overridable_db_config(
     assert overriden_config.ssl_root_cert_path == expected_ssl_root_cert_path
 
 
+@final
 class SimplePulumiDbConfig(PulumiDbConfig):
     @property
     @override
@@ -117,5 +119,46 @@ def test_pulumi_db_config(mocker: MockerFixture) -> None:
             call(key(USERNAME_KEY_SUFFIX)),
             call(key(PASSWORD_KEY_SUFFIX)),
             call(key(INITIAL_DBNAME_KEY_SUFFIX)),
+        ]
+    )
+
+
+@final
+class SimpleSsmDbConfig(SsmDbConfig):
+    @property
+    @override
+    def ssl_root_cert_path(self) -> Path | None:
+        return Path("good-path")
+
+
+def test_ssm_db_config(mocker: MockerFixture) -> None:
+    mock_ssm_client = Mock(get_parameter=Mock(return_value=MagicMock()))
+    mock_boto3_client_constructor = mocker.patch(
+        "defio.client.config.boto3.client", return_value=mock_ssm_client
+    )
+
+    config = SimpleSsmDbConfig(
+        key_prefix=(key_prefix := "dfangs"),
+        db_identifier=(db_identifier := "sanctuary"),
+    )
+
+    assert config.host is not None
+    assert config.port is not None
+    assert config.username is not None
+    assert config.password is not None
+    assert config.dbname is not None
+    assert config.ssl_root_cert_path == Path("good-path")
+
+    def key(name: str) -> str:
+        return f"/{PROJECT_NAME}/{key_prefix}/{db_identifier}/{name}"
+
+    mock_boto3_client_constructor.assert_has_calls([call("ssm") for _ in range(5)])
+    mock_ssm_client.get_parameter.assert_has_calls(
+        [
+            call(Name=key(HOST_KEY_SUFFIX), WithDecryption=ANY),
+            call(Name=key(PORT_KEY_SUFFIX), WithDecryption=ANY),
+            call(Name=key(USERNAME_KEY_SUFFIX), WithDecryption=ANY),
+            call(Name=key(PASSWORD_KEY_SUFFIX), WithDecryption=ANY),
+            call(Name=key(INITIAL_DBNAME_KEY_SUFFIX), WithDecryption=ANY),
         ]
     )
