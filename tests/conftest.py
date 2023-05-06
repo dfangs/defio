@@ -12,6 +12,38 @@ from defio.sql.schema import (
 )
 
 
+# The below code introduces a `dataset` mark to pytest
+# It is used to determine whether to run unit tests that require some dataset
+# Reference: https://docs.pytest.org/en/latest/example/simple.html#control-skipping-of-tests-according-to-command-line-option
+def pytest_addoption(parser):
+    parser.addoption(
+        "--with-dataset",
+        action="store_true",
+        default=False,
+        help="run tests that require some dataset",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "dataset: mark test as requiring some dataset to run"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--with-dataset"):
+        # --with-dataset given in cli: do not skip slow tests
+        return
+
+    skip_dataset = pytest.mark.skip(reason="need --with-dataset option to run")
+    for item in items:
+        if "dataset" in item.keywords:
+            item.add_marker(skip_dataset)
+
+
+## Shared fixtures
+
+
 @pytest.fixture(name="imdb_schema")
 def fixture_imdb_schema() -> Schema:
     # NOTE: This fixture is shared among `sql` and `sqlgen` subpackages
