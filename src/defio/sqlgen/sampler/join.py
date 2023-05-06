@@ -23,15 +23,22 @@ from defio.utils.random import Randomizer
 @final
 @define(frozen=True, kw_only=True)
 class JoinSamplerConfig:
-    """Configurations of a join sampler."""
+    """
+    Configurations of a join sampler.
 
-    max_num_tables: int
+    NOTE:
+    It is possible that `num_joins` >= `num_tables` (e.g., self-joins).
+    Thus, it is more appropriate to parameterize using `max_num_joins`
+    rather than `max_num_tables`.
+    """
+
+    max_num_joins: int
     join_types: Sequence[JoinType] = (JoinType.INNER_JOIN,)
     join_types_weights: Sequence[float] | None = None
     with_self_join: bool = False
 
     def __attrs_post_init__(self) -> None:
-        assert self.max_num_tables >= 1
+        assert self.max_num_joins >= 0
         assert JoinType.CROSS_JOIN not in self.join_types
         assert self.join_types_weights is None or (
             len(self.join_types_weights) == len(self.join_types)
@@ -75,9 +82,9 @@ class JoinSampler:
         joins: GenFromClause = GenAliasedTable(initial_unique_table)
 
         # Choose a random number of joins
-        num_joins = self.rng.randint(self.config.max_num_tables)
+        num_joins = self.rng.randint(self.config.max_num_joins, inclusive=True)
 
-        while len(joins.unique_tables) < num_joins + 1:
+        for _ in range(num_joins):
             # Terminate early if there are no more possible joins
             if len(possible_join_edges) == 0:
                 break

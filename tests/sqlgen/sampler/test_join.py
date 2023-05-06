@@ -15,9 +15,10 @@ NUM_ITERS: Final = 1000
 
 class TestJoinSampler:
     @pytest.mark.parametrize(
-        "max_num_tables, join_types, join_type_weights",
+        "max_num_joins, join_types, join_type_weights",
         [
-            (1, [JoinType.INNER_JOIN], None),
+            (0, [JoinType.INNER_JOIN], None),
+            (1, [JoinType.INNER_JOIN], [1.0]),
             (2, [JoinType.INNER_JOIN, JoinType.LEFT_OUTER_JOIN], [0.8, 0.2]),
             (4, list(set(JoinType) - {JoinType.CROSS_JOIN}), None),
         ],
@@ -25,7 +26,7 @@ class TestJoinSampler:
     def test_sample_join(
         self,
         imdb_schema: Schema,
-        max_num_tables: int,
+        max_num_joins: int,
         join_types: Sequence[JoinType],
         join_type_weights: Sequence[float] | None,
     ) -> None:
@@ -33,7 +34,7 @@ class TestJoinSampler:
             schema=imdb_schema,
             rng=Randomizer(),
             config=JoinSamplerConfig(
-                max_num_tables=max_num_tables,
+                max_num_joins=max_num_joins,
                 join_types=join_types,
                 join_types_weights=join_type_weights,
                 with_self_join=True,
@@ -55,7 +56,8 @@ class TestJoinSampler:
         # Check whether the config is enforced
 
         assert all(
-            len(joins.unique_tables) <= max_num_tables for joins in sampled_joins
+            TestJoinSampler._get_num_joins(joins) <= max_num_joins
+            for joins in sampled_joins
         )
 
         assert all(
@@ -67,6 +69,20 @@ class TestJoinSampler:
             TestJoinSampler._get_sampled_join_types(joins) <= expected_join_types
             for joins in sampled_joins
         )
+
+    @staticmethod
+    def _get_num_joins(joins: GenFromClause) -> int:
+        match joins:
+            case GenAliasedTable():
+                return 0
+            case GenJoin():
+                return (
+                    1
+                    + TestJoinSampler._get_num_joins(joins.left)
+                    + TestJoinSampler._get_num_joins(joins.right)
+                )
+            case _:
+                raise RuntimeError("Should not reach here")
 
     @staticmethod
     def _get_sampled_tables(joins: GenFromClause) -> Set[Table]:

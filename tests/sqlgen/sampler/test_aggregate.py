@@ -19,7 +19,7 @@ class TestAggregateSampler:
             schema=imdb_schema,
             rng=Randomizer(),
             config=JoinSamplerConfig(
-                max_num_tables=len(imdb_schema.tables),
+                max_num_joins=len(imdb_schema.tables),
             ),
         )
 

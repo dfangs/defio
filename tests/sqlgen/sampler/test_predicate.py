@@ -34,7 +34,7 @@ class TestPredicateSampler:
             schema=schema,
             rng=Randomizer(),
             config=JoinSamplerConfig(
-                max_num_tables=len(schema.tables),
+                max_num_joins=len(schema.tables),
             ),
         )
 
@@ -45,7 +45,7 @@ class TestPredicateSampler:
         [0, 1, 2, 4],
     )
     @pytest.mark.dataset
-    def test_sample(
+    def test_sample_predicate(
         self,
         schema: Schema,
         stats: DataStats,
