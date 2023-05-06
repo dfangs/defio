@@ -176,6 +176,10 @@ class LaunchTemplate(pulumi.ComponentResource, ComponentMixin):
 class Instance(pulumi.ComponentResource, ComponentMixin):
     """
     Pulumi component resource for AWS EC2 Instance.
+
+    TODO:
+    Currently, changing some parameters don't trigger replacement;
+    it only replaces the launch template, but not the tnstance.
     """
 
     def __init__(
@@ -219,9 +223,18 @@ class Instance(pulumi.ComponentResource, ComponentMixin):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        self.register_outputs({"id": self.id})
+        self.register_outputs({"id": self.id, "public_dns": self.public_dns})
 
     @property
     def id(self) -> pulumi.Output[str]:
         """Returns the identifier of this EC2 instance."""
         return self._instance.id
+
+    @property
+    def public_dns(self) -> pulumi.Output[str]:
+        """
+        Returns the public DNS of this EC2 instance.
+
+        If this instance is not public, returns an empty string instead.
+        """
+        return self._instance.public_dns
