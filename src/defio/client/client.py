@@ -76,7 +76,6 @@ class AsyncConnection(Protocol[_Row_co]):
         async for row in self.execute(query):
             return row
 
-    @abstractmethod
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[None]:
         """
@@ -86,7 +85,7 @@ class AsyncConnection(Protocol[_Row_co]):
         in a single transaction.
         """
         yield  # type: ignore
-        raise NotImplementedError
+        raise NotImplementedError("Transactions are not supported")
 
 
 class AsyncClient(Protocol[_Row_co]):
@@ -106,7 +105,7 @@ class AsyncClient(Protocol[_Row_co]):
     """
 
     @abstractmethod
-    async def connect(self) -> AsyncConnection:
+    async def connect(self) -> AsyncConnection[_Row_co]:
         """
         Creates an async connection to the database this client is
         interfacing with.

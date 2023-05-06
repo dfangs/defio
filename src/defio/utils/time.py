@@ -21,7 +21,7 @@ class TimeMeasurement:
     Represents a measurement of some time interval up to microsecond resolution.
     """
 
-    start_time: datetime
+    _start_time: datetime
     _start_time_benchmark: float
     _end_time_benchmark: float | None
     _timer: Callable[[], float]
@@ -30,7 +30,7 @@ class TimeMeasurement:
         self, /, *, start_time: datetime, timer: Callable[[], float] = time.perf_counter
     ) -> None:
         # Get actual time from the input
-        self.start_time = start_time
+        self._start_time = start_time
 
         # Use timer function (e.g., `perf_counter()`) for more accurate duration
         self._start_time_benchmark = timer()
@@ -47,6 +47,11 @@ class TimeMeasurement:
     def stop(self) -> None:
         """Stops this time measurement and records the end time."""
         self._end_time_benchmark = self._timer()
+
+    @property
+    def start_time(self) -> datetime:
+        """Returns the start time of this measurement."""
+        return self._start_time
 
     @property
     def end_time(self) -> datetime:

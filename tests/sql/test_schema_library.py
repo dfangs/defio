@@ -240,7 +240,7 @@ class TestRelationshipGraph:
         )
 
     def test_to_list(self, library: Schema, library_dict: dict[str, Any]) -> None:
-        def deorder(array: list[list[Any]]) -> set[tuple[Any]]:
+        def deorder(array: list[list[Any]]) -> set[tuple[Any, ...]]:
             return set(tuple(item) for item in array)
 
         actual = library.relationships.to_list()

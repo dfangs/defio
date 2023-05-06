@@ -56,10 +56,10 @@ class Vpc(pulumi.ComponentResource, ComponentMixin):
         self._gateway_endpoints = set[GatewayEndpointService]()
 
         # Keep track of children component resources
-        self._route_tables = list[RouteTable]()
-        self._public_subnets = list[Subnet]()
-        self._private_subnets = list[Subnet]()
-        self._security_groups = list[SecurityGroup]()  # TODO: `dict` instead?
+        self._route_tables: list[RouteTable] = []
+        self._public_subnets: list[Subnet] = []
+        self._private_subnets: list[Subnet] = []
+        self._security_groups: list[SecurityGroup] = []  # TODO: `dict` instead?
 
     def __enter__(self) -> Self:
         return self

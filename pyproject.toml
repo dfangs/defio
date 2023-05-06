@@ -80,6 +80,7 @@ good-names = [
     "sg",  # Security group
     "tg",  # asyncio `TaskGroup`
     "df",  # DataFrame
+    "dt",  # datetime
 ]
 
 [tool.pylint.'FORMAT']

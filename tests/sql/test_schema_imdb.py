@@ -354,7 +354,7 @@ class TestRelationshipGraph:
         )
 
     def test_to_list(self, imdb: Schema, imdb_dict: dict[str, Any]) -> None:
-        def deorder(array: list[list[Any]]) -> set[tuple[Any]]:
+        def deorder(array: list[list[Any]]) -> set[tuple[Any, ...]]:
             return set(tuple(item) for item in array)
 
         actual = imdb.relationships.to_list()

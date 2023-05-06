@@ -6,7 +6,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Final
 
-from defio.dataset.dataset import Dataset, DatasetLoadConfig
+from defio.dataset import Dataset, DatasetLoadConfig
 from defio.dataset.stats import DataStats
 
 COMPANY_SCHEMA: Final = """

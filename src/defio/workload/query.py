@@ -66,6 +66,8 @@ class ScheduledQuery:
       some other state (e.g., `STARTED` or `RUNNING`) to `SCHEDULED`.
     - `scheduled_time` is the time when the query is scheduled to
       be executed on some database.
+
+    Implementation note: All datetimes should be in UTC.
     """
 
     user: User
@@ -110,6 +112,8 @@ class QueryReport(Generic[_T]):
       `RUNNING` to `COMPLETED`.
     - `execution_time` is the duration from `executed_time` to
       `completed_time`.
+
+    Implementation note: All datetimes should be in UTC.
     """
 
     user: User

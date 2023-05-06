@@ -200,8 +200,10 @@ async def test_unbounded_repeat() -> None:
     _, query_reports = reporter.reports_by_user.popitem()
 
     # Runner should not execute queries before their scheduled times
+    # NOTE: Add some leeway to take into account non-monotonicity of time
     assert all(
-        query_report.executed_time >= query_report.scheduled_time
+        query_report.executed_time
+        >= query_report.scheduled_time - timedelta(milliseconds=50)
         for query_report in query_reports
     )
 
