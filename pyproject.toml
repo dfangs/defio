@@ -12,15 +12,17 @@ python = "^3.11"
 typing-extensions = "^4.5.0"
 attrs = "^22.2.0"
 immutables = "^0.19"
-pulumi = "^3.65.1"
-pulumi-aws = "^5.39.0"
-psycopg = { extras = ["binary"], version = "^3.1.8" }
+pulumi = "^3.66.0"
+pulumi-aws = "^5.40.0"
+psycopg = { extras = ["binary"], version = "^3.1.9" }
 pglast = "^5.1"
 numpy = "^1.24.3"
 pandas = "^2.0.1"
 humanize = "^4.6.0"
 aiobotocore = "^2.5.0"
 types-aiobotocore = { extras = ["s3"], version = "^2.5.0.post2" }
+boto3 = "^1.26"
+boto3-stubs = { extras = ["ssm"], version = "^1.26.129" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3.1"
