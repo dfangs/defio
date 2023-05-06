@@ -177,7 +177,7 @@ async def _reporter_worker(
                 case _:
                     assert_never(queue_item)
 
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as exc:
         # In case of cancellation (e.g., by Task Group),
         # make sure to report the remaining items
         while not completed_queue.empty():
@@ -189,5 +189,10 @@ async def _reporter_worker(
 
             await reporter.report(query_report)
 
-        await reporter.done()
+        await reporter.error(exc)
+        raise
+
+    except Exception as exc:
+        # Catch all other errors for reporting purposes
+        await reporter.error(exc)
         raise

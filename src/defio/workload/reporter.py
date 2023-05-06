@@ -19,8 +19,15 @@ class QueryReporter(Protocol[_T]):
     @abstractmethod
     async def done(self) -> None:
         """
-        Signals the end of a workload run, either due to all queries
-        have been processed or some exception was raised.
+        Signals the successful completion of the workload run.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def error(self, exc: BaseException) -> None:
+        """
+        Signals the premature end of the workload run due to some
+        exception being raised.
         """
         raise NotImplementedError
 
@@ -35,6 +42,10 @@ class BlankQueryReporter(QueryReporter[Any]):
 
     @override
     async def done(self) -> None:
+        ...
+
+    @override
+    async def error(self, exc: BaseException) -> None:
         ...
 
 
@@ -53,3 +64,7 @@ class SimpleQueryReporter(QueryReporter[Any]):
     @override
     async def done(self) -> None:
         print("Finished running the workload")
+
+    @override
+    async def error(self, exc: Exception | None = None) -> None:
+        print(f"Exception `{exc}` occurred during the workload run")

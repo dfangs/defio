@@ -72,6 +72,7 @@ class SpyClient(AsyncClient[int]):
 class SpyQueryReporter(QueryReporter[int]):
     reports_by_user: dict[User, list[QueryReport[int]]] = field(factory=dict)
     is_done: asyncio.Event = field(factory=asyncio.Event)
+    is_error: asyncio.Event = field(factory=asyncio.Event)
 
     @override
     async def report(self, query_report: QueryReport[int]) -> None:
@@ -80,6 +81,10 @@ class SpyQueryReporter(QueryReporter[int]):
     @override
     async def done(self) -> None:
         self.is_done.set()
+
+    @override
+    async def error(self, exc: BaseException) -> None:
+        self.is_error.set()
 
 
 @pytest.mark.asyncio
@@ -109,6 +114,8 @@ async def test_serial_order() -> None:
             client=SpyClient(),
             reporter=(reporter := SpyQueryReporter()),
         )
+
+        assert reporter.is_done.is_set()
 
     # Only check queries with `Once` schedules
     actual_query_execution_orders = {
@@ -159,7 +166,7 @@ async def test_concurrent() -> None:
 
         # Need to cancel this so that pytest doesn't give a warning
         task.cancel()
-        await reporter.is_done.wait()
+        await reporter.is_error.wait()
 
 
 @pytest.mark.asyncio
@@ -187,7 +194,7 @@ async def test_unbounded_repeat() -> None:
 
         # Need to cancel this so that pytest doesn't give a warning
         task.cancel()
-        await reporter.is_done.wait()
+        await reporter.is_error.wait()
 
     assert len(reporter.reports_by_user) == 1
     _, query_reports = reporter.reports_by_user.popitem()
