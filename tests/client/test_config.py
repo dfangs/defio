@@ -152,7 +152,9 @@ def test_ssm_db_config(mocker: MockerFixture) -> None:
     def key(name: str) -> str:
         return f"/{PROJECT_NAME}/{key_prefix}/{db_identifier}/{name}"
 
-    mock_boto3_client_constructor.assert_has_calls([call("ssm") for _ in range(5)])
+    mock_boto3_client_constructor.assert_has_calls(
+        [call("ssm", region_name=ANY) for _ in range(5)]
+    )
     mock_ssm_client.get_parameter.assert_has_calls(
         [
             call(Name=key(HOST_KEY_SUFFIX), WithDecryption=ANY),

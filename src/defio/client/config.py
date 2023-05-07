@@ -10,6 +10,7 @@ from typing_extensions import override
 
 from defio.infra.constants import PROJECT_NAME
 from defio.infra.project.output import (
+    AWS_REGION_NAME,
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
     PASSWORD_KEY_SUFFIX,
@@ -225,7 +226,8 @@ class SsmDbConfig(DbConfig):
         )
 
         try:
-            client = boto3.client("ssm")
+            # TODO: Parameterize region name + DRY out both Pulumi + SSM configs
+            client = boto3.client("ssm", region_name="us-east-1")
             result = client.get_parameter(Name=parameter_name, WithDecryption=True)
 
             return result["Parameter"]["Value"]
