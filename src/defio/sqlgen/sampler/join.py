@@ -4,7 +4,7 @@ from collections.abc import Sequence, Set
 from math import isclose
 from typing import final
 
-from attrs import define
+from attrs import define, field
 
 from defio.sql.ast.from_clause import JoinType
 from defio.sql.ast.operator import BinaryOperator
@@ -17,6 +17,7 @@ from defio.sqlgen.ast.from_clause import (
     JoinPredicate,
 )
 from defio.sqlgen.ast.helper import UniqueTable
+from defio.sqlgen.utils import sort_join_edges
 from defio.utils.random import Randomizer
 
 
@@ -63,8 +64,12 @@ class JoinSampler:
     """
 
     schema: Schema
-    rng: Randomizer
     config: JoinSamplerConfig
+    seed: int | None = None
+    _rng: Randomizer = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_rng", Randomizer(self.seed))
 
     def sample_joins(self) -> GenFromClause:
         """
@@ -72,7 +77,7 @@ class JoinSampler:
         AST representation.
         """
         # Start with a random table
-        initial_table = self.rng.choose_one(self.schema.tables)
+        initial_table = self._rng.choose_one(self.schema.tables)
         initial_unique_table = UniqueTable(initial_table)
 
         join_tables = {initial_table: initial_unique_table}
@@ -82,14 +87,16 @@ class JoinSampler:
         joins: GenFromClause = GenAliasedTable(initial_unique_table)
 
         # Choose a random number of joins
-        num_joins = self.rng.randint(self.config.max_num_joins, inclusive=True)
+        num_joins = self._rng.randint(self.config.max_num_joins, inclusive=True)
 
         for _ in range(num_joins):
             # Terminate early if there are no more possible joins
             if len(possible_join_edges) == 0:
                 break
 
-            join_edge = self.rng.choose_one(list(possible_join_edges))
+            # Convert Set to a sorted Sequence
+            # NOTE: Set iteration order is not deterministic, so this is necessary
+            join_edge = self._rng.choose_one(sort_join_edges(possible_join_edges))
 
             first_table, first_column = join_edge.first
             second_table, second_column = join_edge.second
@@ -137,7 +144,7 @@ class JoinSampler:
             possible_join_edges -= {join_edge}
 
             # Randomly select the join type
-            join_type = self.rng.choose_one(
+            join_type = self._rng.choose_one(
                 self.config.join_types, weights=self.config.join_types_weights
             )
 

@@ -14,6 +14,7 @@ from defio.sql.schema import Table
 from defio.sqlgen.ast import GenSQL
 from defio.sqlgen.ast.expression import GenColumnReference
 from defio.sqlgen.ast.helper import UniqueTable
+from defio.sqlgen.utils import sort_unique_tables
 
 
 @define(frozen=True)
@@ -43,7 +44,8 @@ class GenFromClause(GenSQL):
         table_aliases = dict[UniqueTable, str]()
         for unique_tables in table_groups.values():
             if len(unique_tables) > 1:
-                for i, unique_table in enumerate(unique_tables):
+                # Sort for deterministic results
+                for i, unique_table in enumerate(sort_unique_tables(unique_tables)):
                     # Use 1-based indexing
                     table_aliases[unique_table] = f"{unique_table}_{i+1}"
 

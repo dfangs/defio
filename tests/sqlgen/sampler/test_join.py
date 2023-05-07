@@ -1,16 +1,16 @@
 from collections.abc import Sequence, Set
-from itertools import combinations
+from itertools import combinations, pairwise
 from typing import Final
 
 import pytest
 
-from defio.sql.ast.from_clause import JoinType
+from defio.sql.ast.from_clause import FromClause, JoinType
 from defio.sql.schema import Schema, Table, TableColumn
 from defio.sqlgen.ast.from_clause import GenAliasedTable, GenFromClause, GenJoin
 from defio.sqlgen.sampler.join import JoinEdge, JoinSampler, JoinSamplerConfig
-from defio.utils.random import Randomizer
 
-NUM_ITERS: Final = 1000
+NUM_ITERS: Final = 3
+NUM_SAMPLES: Final = 1000
 
 
 class TestJoinSampler:
@@ -32,7 +32,6 @@ class TestJoinSampler:
     ) -> None:
         join_sampler = JoinSampler(
             schema=imdb_schema,
-            rng=Randomizer(),
             config=JoinSamplerConfig(
                 max_num_joins=max_num_joins,
                 join_types=join_types,
@@ -41,7 +40,7 @@ class TestJoinSampler:
             ),
         )
 
-        sampled_joins = [join_sampler.sample_joins() for _ in range(NUM_ITERS)]
+        sampled_joins = [join_sampler.sample_joins() for _ in range(NUM_SAMPLES)]
 
         expected_join_types = (
             {
@@ -69,6 +68,30 @@ class TestJoinSampler:
             TestJoinSampler._get_sampled_join_types(joins) <= expected_join_types
             for joins in sampled_joins
         )
+
+    def test_repeatability(
+        self,
+        imdb_schema: Schema,
+    ) -> None:
+        multiple_sampled_joins: list[list[FromClause]] = []
+
+        for _ in range(NUM_ITERS):
+            join_sampler = JoinSampler(
+                schema=imdb_schema,
+                config=JoinSamplerConfig(
+                    max_num_joins=len(imdb_schema.tables),
+                ),
+                seed=0,  # Seed the sampler
+            )
+
+            # NOTE: Convert to `SQL`; `GenSQL` can't be compared due to `UniqueTable`
+            multiple_sampled_joins.append(
+                # Smaller number of samples is OK
+                [join_sampler.sample_joins().to_sql() for _ in range(NUM_SAMPLES // 10)]
+            )
+
+        # All iterations must produce the same results
+        assert all(left == right for left, right in pairwise(multiple_sampled_joins))
 
     @staticmethod
     def _get_num_joins(joins: GenFromClause) -> int:

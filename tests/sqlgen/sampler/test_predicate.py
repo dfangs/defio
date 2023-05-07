@@ -1,10 +1,12 @@
 from collections.abc import Sequence
+from itertools import pairwise
 from typing import Final
 
 import pytest
 
 from defio.dataset.imdb import IMDB_GZ
 from defio.dataset.stats import DataStats
+from defio.sql.ast.where_clause import WhereClause
 from defio.sql.schema import Schema
 from defio.sqlgen.ast.from_clause import GenFromClause
 from defio.sqlgen.ast.where_clause import (
@@ -14,9 +16,9 @@ from defio.sqlgen.ast.where_clause import (
 )
 from defio.sqlgen.sampler.join import JoinSampler, JoinSamplerConfig
 from defio.sqlgen.sampler.predicate import PredicateSampler, PredicateSamplerConfig
-from defio.utils.random import Randomizer
 
-NUM_ITERS: Final = 1000
+NUM_ITERS: Final = 3
+NUM_SAMPLES: Final = 1000
 
 
 class TestPredicateSampler:
@@ -32,13 +34,12 @@ class TestPredicateSampler:
     def fixture_sampled_joins(self, schema: Schema) -> Sequence[GenFromClause]:
         join_sampler = JoinSampler(
             schema=schema,
-            rng=Randomizer(),
             config=JoinSamplerConfig(
                 max_num_joins=len(schema.tables),
             ),
         )
 
-        return [join_sampler.sample_joins() for _ in range(NUM_ITERS)]
+        return [join_sampler.sample_joins() for _ in range(NUM_SAMPLES)]
 
     @pytest.mark.parametrize(
         "max_num_predicates",
@@ -59,7 +60,6 @@ class TestPredicateSampler:
         predicate_sampler = PredicateSampler(
             schema=schema,
             stats=stats,
-            rng=Randomizer(),
             config=PredicateSamplerConfig(
                 max_num_predicates=max_num_predicates,
             ),
@@ -73,6 +73,48 @@ class TestPredicateSampler:
         assert all(
             TestPredicateSampler._get_num_predicates(predicates) <= max_num_predicates
             for predicates in sampled_predicates
+        )
+
+    @pytest.mark.dataset
+    def test_repeatability(
+        self,
+        schema: Schema,
+        stats: DataStats,
+        sampled_joins: Sequence[GenFromClause],
+    ) -> None:
+        multiple_sampled_predicates: list[list[WhereClause | None]] = []
+
+        for _ in range(NUM_ITERS):
+            predicate_sampler = PredicateSampler(
+                schema=schema,
+                stats=stats,
+                config=PredicateSamplerConfig(
+                    max_num_predicates=10,
+                ),
+                seed=0,  # Seed the sampler
+            )
+
+            # NOTE: Convert to `SQL`; `GenSQL` can't be compared due to `UniqueTable`
+            multiple_sampled_predicates.append(
+                [
+                    (
+                        sampled_predicate.to_sql()
+                        if (
+                            sampled_predicate := predicate_sampler.sample_predicates(
+                                joins
+                            )
+                        )
+                        is not None
+                        else None
+                    )
+                    for i, joins in enumerate(sampled_joins)
+                    if i < NUM_SAMPLES // 10  # Smaller number of samples is OK
+                ]
+            )
+
+        # All iterations must produce the same results
+        assert all(
+            left == right for left, right in pairwise(multiple_sampled_predicates)
         )
 
     @staticmethod

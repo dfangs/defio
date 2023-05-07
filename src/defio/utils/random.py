@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from math import isclose
-from typing import TypeVar, final
+from typing import TypeVar, cast, final
 
 import numpy as np
 from attrs import define
@@ -53,6 +53,7 @@ class Randomizer:
         size: int = 1,
         replace: bool = False,
         weights: Sequence[float] | None = None,
+        show: bool = False,
     ) -> Sequence[_T]:
         """
         Randomly chooses `size` elements with or without replacement (depending on
@@ -75,8 +76,11 @@ class Randomizer:
                 raise ValueError("Length of `weights` must match the given array")
 
         indexes = self._rng.choice(
-            np.arange(len(array)), size=size, replace=replace, p=weights
+            a := np.arange(len(array)), size=size, replace=replace, p=weights
         )
+        if show:
+            print(size, replace, weights)
+            print(indexes)
 
         return [array[i] for i in indexes]
 
@@ -99,3 +103,11 @@ class Randomizer:
             if high is None:
                 raise ValueError(f"Invalid interval: [0, {low})") from exc
             raise ValueError(f"Invalid interval: [{low}, {high})") from exc
+
+    @staticmethod
+    def create_entropy() -> int:
+        """
+        Creates a fresh, unpredictable entropy that can be used to
+        initialize a Randomizer instance.
+        """
+        return cast(int, np.random.SeedSequence().entropy)

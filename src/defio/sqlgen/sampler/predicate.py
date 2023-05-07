@@ -2,7 +2,7 @@ import math
 from typing import Any, assert_never, cast
 
 import numpy as np
-from attrs import define
+from attrs import define, field
 
 from defio.dataset.column_stats import (
     CategoricalColumnStats,
@@ -26,6 +26,7 @@ from defio.sqlgen.ast.where_clause import (
     GenSimplePredicate,
     GenWhereClause,
 )
+from defio.sqlgen.utils import sort_unique_tables
 from defio.utils.random import Randomizer
 
 
@@ -34,7 +35,7 @@ class PredicateSamplerConfig:
     """Configurations of a predicate sampler."""
 
     max_num_predicates: int
-    p_drop_point_query: float = 0.5
+    p_drop_point_query: float = 0.9
     p_not: float = 0.05
 
     def __attrs_post_init__(self) -> None:
@@ -58,16 +59,20 @@ class PredicateSampler:
 
     schema: Schema
     stats: DataStats
-    rng: Randomizer
     config: PredicateSamplerConfig
+    seed: int | None = None
+    _rng: Randomizer = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_rng", Randomizer(self.seed))
 
     def sample_predicates(self, joins: GenFromClause) -> GenWhereClause | None:
         """
         Samples some filter predicates and returns the corresponding
         AST representation (if any).
         """
-        # Convert Set to Sequence (to match with `weights`)
-        unique_tables = list(joins.unique_tables)
+        # Convert Set to sorted Sequence (to match with `weights`)
+        unique_tables = sort_unique_tables(joins.unique_tables)
 
         possible_column_refs = [
             GenColumnReference(unique_table, column)
@@ -86,7 +91,7 @@ class PredicateSampler:
         )
         weights /= np.sum(weights)
 
-        num_predicates = self.rng.randint(
+        num_predicates = self._rng.randint(
             min(len(possible_column_refs), self.config.max_num_predicates),
             inclusive=True,
         )
@@ -95,7 +100,7 @@ class PredicateSampler:
         if num_predicates == 0:
             return None
 
-        sampled_column_refs = self.rng.choose(
+        sampled_column_refs = self._rng.choose(
             possible_column_refs, size=num_predicates, weights=weights
         )
 
@@ -105,7 +110,7 @@ class PredicateSampler:
             (
                 # Invert the predicate with some probability
                 GenCompoundPredicate.make_not(predicate)
-                if self.rng.flip(self.config.p_not)
+                if self._rng.flip(self.config.p_not)
                 else predicate
             )
             for column_ref in sampled_column_refs
@@ -206,13 +211,13 @@ class PredicateSampler:
 
         Available operators: `=`, `!=`, and `IN`.
         """
-        most_frequent_values = list(column_stats.most_frequent_values)
+        most_frequent_values = sorted(list(column_stats.most_frequent_values))
 
         # Edge case: No most frequent values
         if len(most_frequent_values) == 0:
             return None
 
-        operator = self.rng.choose_one(
+        operator = self._rng.choose_one(
             [BinaryOperator.EQ, BinaryOperator.NEQ, BinaryOperator.IN]
         )
 
@@ -220,16 +225,18 @@ class PredicateSampler:
             return GenSimplePredicate.make_binary_column_predicate(
                 left=column_ref,
                 operator=BinaryOperator.IN,
-                right=self.rng.choose(
+                right=self._rng.choose(
                     most_frequent_values,
-                    size=self.rng.randint(1, len(most_frequent_values), inclusive=True),
+                    size=self._rng.randint(
+                        1, len(most_frequent_values), inclusive=True
+                    ),
                 ),
             )
 
         return GenSimplePredicate.make_binary_column_predicate(
             left=column_ref,
             operator=operator,
-            right=self.rng.choose_one(most_frequent_values),
+            right=self._rng.choose_one(most_frequent_values),
         )
 
     def _sample_key_predicate(
@@ -245,13 +252,13 @@ class PredicateSampler:
             return None
 
         # Randomly drop point queries so that generated predicates are not too selective
-        if self.rng.flip(self.config.p_drop_point_query):
+        if self._rng.flip(self.config.p_drop_point_query):
             return None
 
         return GenSimplePredicate.make_binary_column_predicate(
             left=column_ref,
             operator=BinaryOperator.EQ,
-            right=self.rng.choose_one(stats.sampled_values),
+            right=self._rng.choose_one(stats.sampled_values),
         )
 
     def _sample_numerical_predicate(
@@ -266,7 +273,7 @@ class PredicateSampler:
         if math.isnan(stats.mean):
             return None
 
-        operator = self.rng.choose_one(
+        operator = self._rng.choose_one(
             [
                 BinaryOperator.LT,
                 BinaryOperator.LEQ,
@@ -281,13 +288,13 @@ class PredicateSampler:
             return GenSimplePredicate.make_binary_column_predicate(
                 left=column_ref,
                 operator=operator,
-                right=self.rng.choose(stats.percentiles, size=2),
+                right=self._rng.choose(stats.percentiles, size=2),
             )
 
         return GenSimplePredicate.make_binary_column_predicate(
             left=column_ref,
             operator=operator,
-            right=self.rng.choose_one(stats.percentiles),
+            right=self._rng.choose_one(stats.percentiles),
         )
 
     def _sample_raw_string_predicate(
@@ -298,7 +305,7 @@ class PredicateSampler:
 
         Available operators: `LIKE`.
         """
-        frequent_words = list(stats.frequent_words)
+        frequent_words = sorted(list(stats.frequent_words))
 
         # Edge case: No frequent words
         if len(frequent_words) == 0:
@@ -307,5 +314,5 @@ class PredicateSampler:
         return GenSimplePredicate.make_binary_column_predicate(
             left=column_ref,
             operator=BinaryOperator.LIKE,
-            right=f"%{self.rng.choose_one(frequent_words)}%",
+            right=f"%{self._rng.choose_one(frequent_words)}%",
         )

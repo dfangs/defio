@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections.abc import Iterator
 from typing import final
 
-from attrs import define
+from attrs import define, field
 from typing_extensions import override
 
 from defio.dataset import Dataset
@@ -31,7 +31,7 @@ class SqlGenerator(ImmutableGenerator[str]):
 
 
 @final
-@define(frozen=True, eq=False, kw_only=True)
+@define(frozen=True, kw_only=True)
 class RandomSqlGenerator(SqlGenerator):
     """
     Lazy SQL generator based on random sampling from an actual dataset.
@@ -40,34 +40,44 @@ class RandomSqlGenerator(SqlGenerator):
     In particular, it can only generate `SELECT` statements with joins,
     filters, and aggregates. More advanced features such as group-bys,
     `HAVING` clauses, and subqueries are not yet supported.
+
+    Additionally, while this generator produces nondeterministic outputs
+    (more specifically, pseudo-random based on the provided `seed`),
+    multiple iterations of the same generator instance will always yield
+    the same sequence of outputs.
     """
 
     dataset: Dataset
-    rng: Randomizer
     join_config: JoinSamplerConfig
     predicate_config: PredicateSamplerConfig
     aggregate_config: AggregateSamplerConfig
-    num_queries: int = 10_000
+    num_queries: int = 1_000
+    seed: int = field(factory=Randomizer.create_entropy)
 
     @override
     def __iter__(self) -> Iterator[str]:
+        # NOTE:
+        # To ensure repeatability across multiple iterations,
+        # `seed` cannot be `None` and has to be fixed at creation time
+        # (or otherwise each sampler will generate its own entropy)
+
         join_sampler = JoinSampler(
             schema=self.dataset.schema,
-            rng=self.rng,
             config=self.join_config,
+            seed=self.seed,
         )
 
         predicate_sampler = PredicateSampler(
             schema=self.dataset.schema,
             stats=self.dataset.stats,
-            rng=self.rng,
             config=self.predicate_config,
+            seed=self.seed,
         )
 
         aggregate_sampler = AggregateSampler(
             schema=self.dataset.schema,
-            rng=self.rng,
             config=self.aggregate_config,
+            seed=self.seed,
         )
 
         for _ in range(self.num_queries):

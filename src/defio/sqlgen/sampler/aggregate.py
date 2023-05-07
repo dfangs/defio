@@ -1,12 +1,13 @@
 from typing import final
 
-from attrs import define
+from attrs import define, field
 
 from defio.sql.ast.expression import FunctionName
 from defio.sql.schema import DataType, Schema
 from defio.sqlgen.ast.expression import GenColumnReference, GenFunctionCall
 from defio.sqlgen.ast.from_clause import GenFromClause
 from defio.sqlgen.ast.statement import GenTargetList
+from defio.sqlgen.utils import sort_unique_tables
 from defio.utils.random import Randomizer
 
 
@@ -39,8 +40,12 @@ class AggregateSampler:
     """
 
     schema: Schema
-    rng: Randomizer
     config: AggregateSamplerConfig
+    seed: int | None = None
+    _rng: Randomizer = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_rng", Randomizer(self.seed))
 
     def sample_aggregates(self, joins: GenFromClause) -> GenTargetList:
         """
@@ -48,25 +53,27 @@ class AggregateSampler:
         AST representation.
         """
         # Simply return a `COUNT(*)` with some probability
-        if self.rng.flip(self.config.p_count_star):
+        if self._rng.flip(self.config.p_count_star):
             return GenTargetList(
                 targets=[GenFunctionCall(func_name=FunctionName.COUNT, agg_star=True)]
             )
 
         possible_column_refs = [
             GenColumnReference(unique_table, column)
-            for unique_table in joins.unique_tables
+            for unique_table in sort_unique_tables(joins.unique_tables)
             for column in unique_table.columns
         ]
 
         # Generate at least one aggregates
-        num_aggregates = self.rng.randint(
+        num_aggregates = self._rng.randint(
             1,
             min(len(possible_column_refs), self.config.max_num_aggregates),
             inclusive=True,
         )
 
-        sampled_column_refs = self.rng.choose(possible_column_refs, size=num_aggregates)
+        sampled_column_refs = self._rng.choose(
+            possible_column_refs, size=num_aggregates
+        )
 
         return GenTargetList(
             targets=[
@@ -84,12 +91,12 @@ class AggregateSampler:
         else:
             allowed_aggregate_types = list(FunctionName)
 
-        func_name = self.rng.choose_one(allowed_aggregate_types)
+        func_name = self._rng.choose_one(allowed_aggregate_types)
 
         if func_name is FunctionName.COUNT:
             return GenFunctionCall(
                 func_name=FunctionName.COUNT,
-                agg_distinct=self.rng.flip(self.config.p_count_distinct),
+                agg_distinct=self._rng.flip(self.config.p_count_distinct),
                 args=[column_ref],
             )
 
