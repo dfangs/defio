@@ -36,7 +36,7 @@ class TestJoinSampler:
                 max_num_joins=max_num_joins,
                 join_types=join_types,
                 join_types_weights=join_type_weights,
-                with_self_join=True,
+                acyclic=False,
             ),
         )
 

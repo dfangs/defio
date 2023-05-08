@@ -28,7 +28,7 @@ class JoinSamplerConfig:
     Configurations of a join sampler.
 
     NOTE:
-    It is possible that `num_joins` >= `num_tables` (e.g., self-joins).
+    It is possible that `num_joins` >= `num_tables` (e.g., cyclic graph).
     Thus, it is more appropriate to parameterize using `max_num_joins`
     rather than `max_num_tables`.
     """
@@ -36,7 +36,7 @@ class JoinSamplerConfig:
     max_num_joins: int
     join_types: Sequence[JoinType] = (JoinType.INNER_JOIN,)
     join_types_weights: Sequence[float] | None = None
-    with_self_join: bool = False
+    acyclic: bool = True
 
     def __attrs_post_init__(self) -> None:
         assert self.max_num_joins >= 0
@@ -56,7 +56,7 @@ class JoinSampler:
     Random sampler of SQL table joins based on their relationship graph.
 
     This sampler does not require the relationship graph to be acyclic
-    (i.e. it can handle self-joins). Additionally, it only generates
+    (it can handle self-joins as well). Additionally, it only generates
     equijoins based on foreign-key relationships.
 
     The behavior of this sampler can be customized to some extent
@@ -102,16 +102,13 @@ class JoinSampler:
             second_table, second_column = join_edge.second
 
             if first_table in join_tables and second_table in join_tables:
+                # Special case: Cycle detected in joins
+                if self.config.acyclic:
+                    continue
+
+                # One of the tables needs to get a new aliased table
                 left_unique_table = join_tables[first_table]
-
-                if first_table == second_table:
-                    # Special case: Self-join
-                    if not self.config.with_self_join:
-                        continue
-                    right_unique_table = UniqueTable(second_table)
-                else:
-                    right_unique_table = join_tables[second_table]
-
+                right_unique_table = UniqueTable(second_table)
                 left_column, right_column = first_column, second_column
 
             elif first_table in join_tables and second_table not in join_tables:

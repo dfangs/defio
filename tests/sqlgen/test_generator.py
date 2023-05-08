@@ -27,7 +27,7 @@ class TestRandomSqlGenerator:
                 # Note: Number of joins can be greater than or equal to number of tables
                 max_num_joins=(max_num_joins := len(IMDB_GZ.schema.tables)),
                 join_types=list(join_types := set(JoinType) - {JoinType.CROSS_JOIN}),
-                with_self_join=True,
+                acyclic=False,
             ),
             predicate_config=PredicateSamplerConfig(
                 max_num_predicates=(max_num_predicates := 10),
