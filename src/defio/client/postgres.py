@@ -4,17 +4,21 @@ import asyncio
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Final, Self
 
 import psycopg
 from attrs import define, field
+from psycopg.types.numeric import FloatLoader
 from typing_extensions import override
 
 from defio.client import AsyncClient, AsyncConnection
 from defio.client.config import DbConfig
 from defio.sql.ast.statement import CreateStatement, DropStatement
 from defio.sql.parser import parse_sql
+
+_SECONDS_TO_MILLISECONDS: Final = 1000
 
 
 @define
@@ -35,6 +39,7 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
         password: str,
         dbname: str | None = None,
         ssl_root_cert_path: Path | None = None,
+        statement_timeout: timedelta | None = None,
     ) -> PostgresConnection:
         """
         Creates a Postgres async connection with the given connection parameters.
@@ -42,6 +47,15 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
         If `ssl_root_cert_path` is provided, use SSL when connecting to the database.
         This will fail if the database doesn't have the right server certificate
         (i.e. it must be verifiable using the given root CA).
+
+        If `statement_timeout` is provided, override the default value set by
+        the database. The given timeout will be rounded to the nearest milliseconds.
+        When enabled, this connection will raise an exception if it takes more than
+        the specified amount of time to execute a query.
+
+        Raises a `ValueError` if `statement_timeout` is not positive.
+
+        TODO: Custom exceptions
         """
         if ssl_root_cert_path is not None and not ssl_root_cert_path.exists():
             raise ValueError("Path to the CA certificate does not exist")
@@ -53,6 +67,12 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
             sslrootcert=(
                 str(ssl_root_cert_path.resolve())
                 if ssl_root_cert_path is not None
+                else None
+            ),
+            options=(
+                "-c statement_timeout="
+                f"{int(statement_timeout.total_seconds() * _SECONDS_TO_MILLISECONDS)}"
+                if statement_timeout is not None
                 else None
             ),
         )
@@ -69,6 +89,11 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
             # See https://www.psycopg.org/psycopg3/docs/basic/transactions.html#autocommit-transactions
             autocommit=True,
         )
+
+        # Convert `numeric` types to `float` instead of `Decimal`
+        # (the latter is not JSON-serializable)
+        # https://www.psycopg.org/psycopg3/docs/advanced/adapt.html#example-postgresql-numeric-to-python-float
+        aconn.adapters.register_loader("numeric", FloatLoader)
 
         return PostgresConnection(aconn=aconn)
 
@@ -87,6 +112,10 @@ class PostgresConnection(AsyncConnection[tuple[Any, ...]]):
             cursor = await self._aconn.execute(query)  # type: ignore
 
         except asyncio.CancelledError:
+            # UPDATE: Not sure if the below is needed, since we're reraising
+            # the exception anyway (i.e. if a connection is closed, does that
+            # cancel all the remaining queries?)
+
             # Task Group will cancel _all_ children tasks if any error is thrown,
             # so make sure to gracefully cancel the still-running queries
             self._aconn.cancel()
@@ -171,7 +200,9 @@ class PostgresClient(AsyncClient[tuple[Any, ...]]):
         )
 
     @override
-    async def connect(self) -> PostgresConnection:
+    async def connect(
+        self, statement_timeout: timedelta | None = None
+    ) -> PostgresConnection:
         return await PostgresConnection.create(
             host=self.host,
             port=self.port,
@@ -179,4 +210,5 @@ class PostgresClient(AsyncClient[tuple[Any, ...]]):
             password=self.password,
             dbname=self.dbname,
             ssl_root_cert_path=self.ssl_root_cert_path,
+            statement_timeout=statement_timeout,
         )

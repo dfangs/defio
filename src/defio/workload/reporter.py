@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import traceback
 from abc import abstractmethod
 from collections.abc import Sequence
 from datetime import datetime, timedelta
@@ -22,21 +21,17 @@ class QueryReporter(Protocol[_T]):
 
     @abstractmethod
     async def report(self, query_report: QueryReport[_T]) -> None:
-        """Reports the completion of the given query."""
+        """
+        Reports the completion (either success or failure) of the given query.
+        """
         raise NotImplementedError
 
     @abstractmethod
     async def done(self) -> None:
         """
-        Signals the successful completion of the workload run.
-        """
-        raise NotImplementedError
+        Reports the completion of the workload run.
 
-    @abstractmethod
-    async def error(self, exc: BaseException) -> None:
-        """
-        Signals the premature end of the workload run due to some
-        exception being raised.
+        Raises a `ValueError` if `done()` has already been called previously.
         """
         raise NotImplementedError
 
@@ -53,77 +48,72 @@ class BlankQueryReporter(QueryReporter[Any]):
     async def done(self) -> None:
         ...
 
-    @override
-    async def error(self, exc: BaseException) -> None:
-        ...
-
 
 @final
-class SimpleQueryReporter(QueryReporter[Any]):
-    """Simple query reporter for demonstration and testing purposes."""
-
-    @override
-    async def report(self, query_report: QueryReport) -> None:
-        print(
-            f"[{query_report.completed_time}] "
-            f"{query_report.user.label}: "
-            f"{query_report.query.sql}"
-        )
-
-    @override
-    async def done(self) -> None:
-        print("Finished running the workload")
-
-    @override
-    async def error(self, exc: Exception | None = None) -> None:
-        print(f"Exception `{exc}` occurred during the workload run")
-
-
 @define(frozen=True, kw_only=True)
-class MinimumQueryReport:
+class SimpleQueryReport:
     """
-    Minimum version of `QueryReport` specialized for PostgreSQL queries.
+    Simple version of `QueryReport` specialized for PostgreSQL queries.
 
-    It only contains the SQL string, execution time, and the result tuples
-    of the query, since it is intended to be used only for training the
-    cost model of the query router.
+    It only contains the SQL string, execution time, and either the
+    result tuples of the query (if the query succeeded) or the error
+    message (if the query failed), since it is intended to be used
+    only for training the cost model of the query router.
     """
 
     sql: str
     execution_time: timedelta
-    results: Sequence[tuple[Any, ...]] = field(converter=to_tuple)
+    results: Sequence[tuple[Any, ...]] | None = field(default=None, converter=to_tuple)
+    error_msg: str | None = None
+
+    def __attrs_post_init__(self) -> None:
+        assert (self.results is not None) ^ (self.error_msg is not None)
 
     @staticmethod
-    def from_str(input_str: str) -> MinimumQueryReport:
-        """Converts the given string into a minimum query report."""
-        json_dict = json.loads(input_str)
-        return MinimumQueryReport(
+    def from_dict(json_dict: dict[str, Any]) -> SimpleQueryReport:
+        """Converts the given JSON dict into a simple query report."""
+        return SimpleQueryReport(
             sql=json_dict["sql"],
             execution_time=timedelta(seconds=json_dict["execution_time"]),
-            results=tuple(tuple(result_tuple) for result_tuple in json_dict["results"]),
+            results=(
+                tuple(tuple(result_tuple) for result_tuple in json_dict["results"])
+                if json_dict["results"] is not None
+                else None
+            ),
+            error_msg=(
+                json_dict["error_msg"] if json_dict["error_msg"] is not None else None
+            ),
         )
 
-    def to_str(self) -> str:
-        """Converts this minimum query report into a single-line string."""
-        return json.dumps(
-            {
-                "sql": self.sql,
-                "execution_time": self.execution_time.total_seconds(),
-                "results": self.results,
-            }
-        )
+    def to_dict(self) -> dict[str, Any]:
+        """Converts this simple query report into a JSON dict."""
+        return {
+            "sql": self.sql,
+            "execution_time": self.execution_time.total_seconds(),
+            "results": self.results,
+            "error_msg": self.error_msg,
+        }
 
     @staticmethod
-    def load(f: TextIO) -> Sequence[MinimumQueryReport]:
-        """Loads the given file into a list of minimum query reports."""
-        return [MinimumQueryReport.from_str(line) for line in f]
+    def loads(input_str: str) -> SimpleQueryReport:
+        """Converts the given string into a minimum query report."""
+        return SimpleQueryReport.from_dict(json.loads(input_str))
+
+    def dumps(self) -> str:
+        """Converts this minimum query report into a single-line string."""
+        return json.dumps(self.to_dict())
+
+    @staticmethod
+    def load_all(f: TextIO) -> Sequence[SimpleQueryReport]:
+        """Loads the given text stream into a list of minimum query reports."""
+        return [SimpleQueryReport.loads(line) for line in f]
 
 
 @final
 @define(frozen=True)
 class FileQueryReporter(QueryReporter[tuple[Any, ...]]):
     """
-    Query reporter that writes `MinimumQueryReport` to the filesystem.
+    Query reporter that writes `ShortQueryReport` to the filesystem.
 
     Mainly used for collecting execution data for training the cost model
     of the query router.
@@ -140,25 +130,19 @@ class FileQueryReporter(QueryReporter[tuple[Any, ...]]):
 
     @override
     async def report(self, query_report: QueryReport[tuple[Any, ...]]) -> None:
-        report_line = MinimumQueryReport(
+        report_line = SimpleQueryReport(
             sql=query_report.query.sql,
             execution_time=query_report.execution_time,
             results=query_report.results,
-        ).to_str()
+            error_msg=(
+                str(query_report.error) if query_report.error is not None else None
+            ),
+        ).dumps()
 
         self._write_report(report_line)
 
     @override
     async def done(self) -> None:
-        self._finalize_report()
-
-    @override
-    async def error(self, exc: BaseException) -> None:
-        # Write the exception to a separate file
-        error_path = self.directory / f"{self._report_name}.error.txt"
-        with open(error_path, mode="w", encoding="utf-8") as f:
-            traceback.print_exception(exc, file=f)
-
         self._finalize_report()
 
     @property

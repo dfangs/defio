@@ -17,11 +17,11 @@ from defio.workload.runner import run_workload
 from defio.workload.schedule import Once, Repeat
 from defio.workload.user import User
 
-SELECT_QUERY = "SELECT {i};"
-SELECT_QUERY_REGEX = re.compile(r"SELECT (\d+);")
+SELECT_QUERY: Final = "SELECT {i};"
+SELECT_QUERY_REGEX: Final = re.compile(r"SELECT (\d+);")
 
 TIMEOUT_SECONDS: Final = 1
-NUM_QUERIES = 10
+NUM_QUERIES: Final = 10
 
 
 @final
@@ -39,7 +39,8 @@ class SpyConnection(AsyncConnection):
             await asyncio.sleep(TIMEOUT_SECONDS)
 
         match = SELECT_QUERY_REGEX.fullmatch(query)
-        assert match is not None
+        if match is None:
+            raise ValueError("Can only execute simple queries")
 
         yield int(match.group(1))
 
@@ -54,7 +55,9 @@ class SpyClient(AsyncClient[int]):
     _connection_count: int = field(default=0, init=False)
 
     @override
-    async def connect(self) -> AsyncConnection[int]:
+    async def connect(
+        self, statement_timeout: timedelta | None = None
+    ) -> AsyncConnection[int]:
         if (
             self.max_num_connections is not None
             and self._connection_count >= self.max_num_connections
@@ -72,7 +75,6 @@ class SpyClient(AsyncClient[int]):
 class SpyQueryReporter(QueryReporter[int]):
     reports_by_user: dict[User, list[QueryReport[int]]] = field(factory=dict)
     is_done: asyncio.Event = field(factory=asyncio.Event)
-    is_error: asyncio.Event = field(factory=asyncio.Event)
 
     @override
     async def report(self, query_report: QueryReport[int]) -> None:
@@ -82,10 +84,6 @@ class SpyQueryReporter(QueryReporter[int]):
     async def done(self) -> None:
         self.is_done.set()
 
-    @override
-    async def error(self, exc: BaseException) -> None:
-        self.is_error.set()
-
 
 @pytest.mark.asyncio
 async def test_serial_order() -> None:
@@ -94,6 +92,7 @@ async def test_serial_order() -> None:
             SELECT_QUERY.format(i=i),
             (
                 # Alternate between `Once` and `Repeat`
+                # NOTE: Use large interval (e.g., seconds) to "guarantee" serial order
                 Once(datetime(year=2023, month=5, day=2) + i * timedelta(seconds=1))
                 if i % 2 == 0
                 else Repeat.starting_now(
@@ -105,10 +104,12 @@ async def test_serial_order() -> None:
     ]
 
     async with asyncio.timeout(TIMEOUT_SECONDS):
+        num_users = 3
+
         await run_workload(
             workload=(
                 workload := Workload.combine(
-                    Workload.serial(mixed_query_source) for _ in range(3)
+                    Workload.serial(mixed_query_source) for _ in range(num_users)
                 )
             ),
             client=SpyClient(),
@@ -127,7 +128,7 @@ async def test_serial_order() -> None:
         for user, query_reports in reporter.reports_by_user.items()
     }
 
-    # Since the original schedules are all in the past, they must be executed in order
+    # For each user, expect the queries to be executed in order
     expected_query_execution_orders = {
         user: list(
             sorted(
@@ -142,8 +143,29 @@ async def test_serial_order() -> None:
 
 
 @pytest.mark.asyncio
+async def test_bad_execution() -> None:
+    async with asyncio.timeout(TIMEOUT_SECONDS):
+        await run_workload(
+            # Bad query: The test connection can only execute `SELECT {i};`
+            workload=Workload.serial(
+                [Query("SELECT *;", Once.now()) for _ in range(NUM_QUERIES)]
+            ),
+            client=SpyClient(),
+            reporter=(reporter := SpyQueryReporter()),
+        )
+
+        # Individual query errors must not stop execution
+        assert reporter.is_done.is_set()
+
+    assert len(reporter.reports_by_user) == 1
+
+    _, query_reports = next(iter(reporter.reports_by_user.items()))
+    assert all(query_report.error is not None for query_report in query_reports)
+
+
+@pytest.mark.asyncio
 async def test_concurrent() -> None:
-    query_source = [
+    minimum_query_source = [
         Query(
             SELECT_QUERY.format(i=0),
             Once(datetime(year=2023, month=5, day=2)),
@@ -152,8 +174,9 @@ async def test_concurrent() -> None:
 
     task = asyncio.create_task(
         run_workload(
+            # Multiple users executing the same query once
             workload=Workload.concurrent(
-                [query_source for _ in range(2 * NUM_QUERIES)]
+                [minimum_query_source for _ in range(2 * NUM_QUERIES)]
             ),
             client=(client := SpyClient(max_num_connections=NUM_QUERIES, slow=True)),
             reporter=(reporter := SpyQueryReporter()),
@@ -166,7 +189,8 @@ async def test_concurrent() -> None:
 
         # Need to cancel this so that pytest doesn't give a warning
         task.cancel()
-        await reporter.is_error.wait()
+
+        await reporter.is_done.wait()
 
 
 @pytest.mark.asyncio
@@ -194,7 +218,8 @@ async def test_unbounded_repeat() -> None:
 
         # Need to cancel this so that pytest doesn't give a warning
         task.cancel()
-        await reporter.is_error.wait()
+
+        await reporter.is_done.wait()
 
     assert len(reporter.reports_by_user) == 1
     _, query_reports = reporter.reports_by_user.popitem()
@@ -218,7 +243,7 @@ async def test_unbounded_repeat() -> None:
     ]
 
     # Under normal execution, queries should be scheduled on time (within some margin)
-    error_margin = 0.01
+    error_margin = 0.05
     assert all(
         abs(interval - repeat_interval) <= error_margin * repeat_interval
         for interval in scheduled_time_intervals

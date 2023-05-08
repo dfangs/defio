@@ -14,8 +14,7 @@ class QueueSignal(Enum):
     (see https://discuss.python.org/t/queue-termination/18386)
     """
 
-    SHUTDOWN = auto()
-    ONE_DONE = auto()
+    DONE = auto()
 
 
 _T = TypeVar("_T")

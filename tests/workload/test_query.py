@@ -44,9 +44,10 @@ def test_query() -> None:
     assert query_report.executed_time == executed_time
     assert query_report.execution_time == execution_time
     assert query_report.completed_time == executed_time + execution_time
+    assert query_report.error is None
 
 
-SQL_TEMPLATE = "SELECT {i};"
+SQL_TEMPLATE: Final = "SELECT {i};"
 NUM_ITERS: Final = 3
 
 

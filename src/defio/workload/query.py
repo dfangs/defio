@@ -81,9 +81,10 @@ class ScheduledQuery:
         *,
         executed_time: datetime,
         execution_time: timedelta,
-        results: Sequence[Any],
+        results: Sequence[Any] | None = None,
+        error: Exception | None = None,
     ) -> QueryReport:
-        """Converts this query into a `CompletedQuery`."""
+        """Creates a completion report of this scheduled query."""
         return QueryReport(
             user=self.user,
             query=self.query,
@@ -92,6 +93,7 @@ class ScheduledQuery:
             executed_time=executed_time,
             execution_time=execution_time,
             results=results,
+            error=error,
         )
 
 
@@ -102,8 +104,12 @@ _T = TypeVar("_T")
 @define(frozen=True, eq=False, kw_only=True)
 class QueryReport(Generic[_T]):
     """
-    Represents a single execution of a scheduled user query.
-    This contains some information useful for reporting purposes.
+    Represents a report of a complete execution of a scheduled
+    user query, which may either be a success or a failure.
+
+    The report contains information useful for analysis purposes,
+    such as time measurements and the result of the execution
+    (either the returned tuples or the thrown error).
 
     Definitions:
     - `executed_time` is the time when the query transitions from
@@ -122,7 +128,11 @@ class QueryReport(Generic[_T]):
     scheduled_time: datetime
     executed_time: datetime
     execution_time: timedelta
-    results: Sequence[_T]
+    results: Sequence[_T] | None = None
+    error: Exception | None = None
+
+    def __attrs_post_init__(self) -> None:
+        assert (self.results is not None) ^ (self.error is not None)
 
     @property
     def completed_time(self) -> datetime:

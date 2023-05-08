@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from types import TracebackType
 from typing import Protocol, Self, TypeVar, final
 
@@ -105,9 +106,15 @@ class AsyncClient(Protocol[_Row_co]):
     """
 
     @abstractmethod
-    async def connect(self) -> AsyncConnection[_Row_co]:
+    async def connect(
+        self, statement_timeout: timedelta | None = None
+    ) -> AsyncConnection[_Row_co]:
         """
         Creates an async connection to the database this client is
         interfacing with.
+
+        If `statement_timeout` is provided, the implementing connection
+        class should abort (i.e. raise an exception) if it takes more
+        than the specified amount of time to execute a query.
         """
         raise NotImplementedError
