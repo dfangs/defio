@@ -19,6 +19,7 @@ _MAX_SCHEDULED_QUEUE_SIZE: Final[int] = 10
 
 
 async def run_workload(
+    *,
     workload: Workload,
     client: AsyncClient[_T],
     reporter: QueryReporter[_T] = BlankQueryReporter(),
@@ -116,7 +117,7 @@ async def _executor_worker(
     ],
     completed_queue: Queue[QueryReport[_T] | Literal[QueueSignal.DONE]],
     client: AsyncClient[_T],
-    statement_timeout: timedelta | None = None,
+    statement_timeout: timedelta | None,
 ) -> None:
     """Worker for executing scheduled queries."""
     while True:

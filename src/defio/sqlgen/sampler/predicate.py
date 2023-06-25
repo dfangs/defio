@@ -265,7 +265,7 @@ class PredicateSampler:
         self, column_ref: GenColumnReference, stats: NumericalColumnStats
     ) -> GenSimplePredicate | None:
         """
-        Samples a predicate for a column with `KEY` column type.
+        Samples a predicate for a column with `NUMERICAL` column type.
 
         Available operators: `<`, `<=`, `>`, `>=`, and `BETWEEN` (range query).
         """

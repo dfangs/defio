@@ -1,0 +1,243 @@
+{
+  "name": "imdb",
+  "csv_kwargs": {
+    "escapechar": "\\",
+    "encoding": "utf-8",
+    "quotechar": "\"",
+    "error_bad_lines": false
+  },
+  "db_load_kwargs": {
+    "postgres": "DELIMITER ',' QUOTE '\"' ESCAPE '\\' NULL '' CSV HEADER;"
+  },
+  "tables": [
+    {
+      "name": "aka_name",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "person_id", "dtype": "integer" },
+        { "name": "name", "dtype": "character" },
+        { "name": "imdb_index", "dtype": "character" },
+        { "name": "name_pcode_cf", "dtype": "character" },
+        { "name": "name_pcode_nf", "dtype": "character" },
+        { "name": "surname_pcode", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "aka_title",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "title", "dtype": "character" },
+        { "name": "imdb_index", "dtype": "character" },
+        { "name": "kind_id", "dtype": "integer" },
+        { "name": "production_year", "dtype": "integer" },
+        { "name": "phonetic_code", "dtype": "character" },
+        { "name": "episode_of_id", "dtype": "integer" },
+        { "name": "season_nr", "dtype": "integer" },
+        { "name": "episode_nr", "dtype": "integer" },
+        { "name": "note", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "cast_info",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "person_id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "person_role_id", "dtype": "integer" },
+        { "name": "note", "dtype": "character" },
+        { "name": "nr_order", "dtype": "integer" },
+        { "name": "role_id", "dtype": "integer" }
+      ]
+    },
+    {
+      "name": "char_name",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "name", "dtype": "character" },
+        { "name": "imdb_index", "dtype": "character" },
+        { "name": "imdb_id", "dtype": "integer" },
+        { "name": "name_pcode_nf", "dtype": "character" },
+        { "name": "surname_pcode", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "comp_cast_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "kind", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "company_name",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "name", "dtype": "character" },
+        { "name": "country_code", "dtype": "character" },
+        { "name": "imdb_id", "dtype": "integer" },
+        { "name": "name_pcode_nf", "dtype": "character" },
+        { "name": "name_pcode_sf", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "company_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "kind", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "complete_cast",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "subject_id", "dtype": "integer" },
+        { "name": "status_id", "dtype": "integer" }
+      ]
+    },
+    {
+      "name": "info_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "info", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "keyword",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "keyword", "dtype": "character" },
+        { "name": "phonetic_code", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "kind_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "kind", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "link_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "link", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "movie_companies",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "company_id", "dtype": "integer" },
+        { "name": "company_type_id", "dtype": "integer" },
+        { "name": "note", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "movie_info_idx",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "info_type_id", "dtype": "integer" },
+        { "name": "info", "dtype": "character" },
+        { "name": "note", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "movie_keyword",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "keyword_id", "dtype": "integer" }
+      ]
+    },
+    {
+      "name": "movie_link",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "linked_movie_id", "dtype": "integer" },
+        { "name": "link_type_id", "dtype": "integer" }
+      ]
+    },
+    {
+      "name": "name",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "name", "dtype": "character" },
+        { "name": "imdb_index", "dtype": "character" },
+        { "name": "imdb_id", "dtype": "integer" },
+        { "name": "gender", "dtype": "character" },
+        { "name": "name_pcode_cf", "dtype": "character" },
+        { "name": "name_pcode_nf", "dtype": "character" },
+        { "name": "surname_pcode", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "role_type",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "role", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "title",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "title", "dtype": "character" },
+        { "name": "imdb_index", "dtype": "character" },
+        { "name": "kind_id", "dtype": "integer" },
+        { "name": "production_year", "dtype": "integer" },
+        { "name": "imdb_id", "dtype": "integer" },
+        { "name": "phonetic_code", "dtype": "character" },
+        { "name": "episode_of_id", "dtype": "integer" },
+        { "name": "season_nr", "dtype": "integer" },
+        { "name": "episode_nr", "dtype": "integer" },
+        { "name": "series_years", "dtype": "character" },
+        { "name": "md5sum", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "movie_info",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "movie_id", "dtype": "integer" },
+        { "name": "info_type_id", "dtype": "integer" },
+        { "name": "info", "dtype": "character" },
+        { "name": "note", "dtype": "character" }
+      ]
+    },
+    {
+      "name": "person_info",
+      "columns": [
+        { "name": "id", "dtype": "integer" },
+        { "name": "person_id", "dtype": "integer" },
+        { "name": "info_type_id", "dtype": "integer" },
+        { "name": "info", "dtype": "character" },
+        { "name": "note", "dtype": "character" }
+      ]
+    }
+  ],
+  "relationships": [
+    ["cast_info", "movie_id", "title", "id"],
+    ["movie_companies", "company_id", "company_name", "id"],
+    ["movie_companies", "company_type_id", "company_type", "id"],
+    ["movie_info_idx", "info_type_id", "info_type", "id"],
+    ["movie_keyword", "keyword_id", "keyword", "id"],
+    ["movie_companies", "movie_id", "title", "id"],
+    ["movie_info_idx", "movie_id", "title", "id"],
+    ["cast_info", "person_role_id", "char_name", "id"],
+    ["movie_keyword", "movie_id", "title", "id"],
+    ["movie_info", "movie_id", "title", "id"],
+    ["person_info", "person_id", "name", "id"],
+    ["title", "kind_id", "kind_type", "id"],
+    ["cast_info", "person_id", "aka_name", "id"],
+    ["aka_name", "person_id", "name", "id"]
+  ]
+}

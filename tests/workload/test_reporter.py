@@ -78,7 +78,7 @@ class TestFileQueryReporter:
     ) -> None:
         with tempfile.TemporaryDirectory() as tmpdirname:
             dirpath = Path(tmpdirname)
-            reporter = FileQueryReporter(dirpath)
+            reporter = FileQueryReporter(dirpath, "test")
 
             for query_report in query_reports:
                 await reporter.report(query_report)
@@ -113,7 +113,7 @@ class TestFileQueryReporter:
     async def test_done_without_report(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdirname:
             dirpath = Path(tmpdirname)
-            reporter = FileQueryReporter(dirpath)
+            reporter = FileQueryReporter(dirpath, "test")
 
             await reporter.done()
 

@@ -7,7 +7,6 @@ from typing import Any, Generic, TypeAlias, TypeVar, final
 from attrs import define, field
 from typing_extensions import override
 
-from defio.sqlgen.generator import SqlGenerator
 from defio.utils.attrs import to_tuple
 from defio.utils.generator import ImmutableGenerator
 from defio.utils.time import get_current_time
@@ -141,7 +140,7 @@ class QueryReport(Generic[_T]):
 
 # Avoid using `Iterable[...]` since it complicates immutable design.
 # Specifically, we can't simply defensive copy all iterables--what if they're unbounded?
-SqlSource: TypeAlias = Sequence[str] | SqlGenerator
+SqlSource: TypeAlias = Sequence[str] | ImmutableGenerator[str]
 QuerySource: TypeAlias = Sequence[Query] | ImmutableGenerator[Query]
 
 
@@ -158,7 +157,7 @@ class QueryGenerator(ImmutableGenerator[Query]):
     `SqlGenerator` shouldn't be used to generate recurring queries.
     """
 
-    _sql_source: SqlSource = field(converter=to_tuple, alias="sql_source")
+    _sql_source: SqlSource = field(converter=to_tuple, alias="sql_source")  # type: ignore (TODO)
     _fixed_time: Once | None = field(default=None, alias="fixed_time")
     _interval: timedelta | None = field(default=None, alias="interval")
 

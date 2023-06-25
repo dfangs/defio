@@ -76,13 +76,11 @@ class SimpleQueryReport:
             sql=json_dict["sql"],
             execution_time=timedelta(seconds=json_dict["execution_time"]),
             results=(
-                tuple(tuple(result_tuple) for result_tuple in json_dict["results"])
-                if json_dict["results"] is not None
+                tuple(tuple(result_tuple) for result_tuple in results)
+                if (results := json_dict["results"]) is not None
                 else None
             ),
-            error_msg=(
-                json_dict["error_msg"] if json_dict["error_msg"] is not None else None
-            ),
+            error_msg=json_dict["error_msg"],
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -122,6 +120,7 @@ class FileQueryReporter(QueryReporter[tuple[Any, ...]]):
     """
 
     directory: Path
+    file_prefix: str
     _creation_time: datetime = field(init=False, factory=datetime.now)
 
     def __attrs_post_init__(self) -> None:
@@ -148,7 +147,7 @@ class FileQueryReporter(QueryReporter[tuple[Any, ...]]):
     @property
     def _report_name(self) -> str:
         timestamp = self._creation_time.strftime("%Y%m%d-%H%M%S")
-        return f"report-{timestamp}"
+        return f"{self.file_prefix}-{timestamp}"
 
     @property
     def _report_path(self) -> Path:
