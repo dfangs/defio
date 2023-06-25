@@ -10,7 +10,6 @@ from typing_extensions import override
 
 from defio.infra.constants import PROJECT_NAME
 from defio.infra.project.output import (
-    AWS_REGION_NAME,
     HOST_KEY_SUFFIX,
     INITIAL_DBNAME_KEY_SUFFIX,
     PASSWORD_KEY_SUFFIX,
