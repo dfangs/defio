@@ -47,7 +47,7 @@ class GenFromClause(GenSQL):
                 # Sort for deterministic results
                 for i, unique_table in enumerate(sort_unique_tables(unique_tables)):
                     # Use 1-based indexing
-                    table_aliases[unique_table] = f"{unique_table}_{i+1}"
+                    table_aliases[unique_table] = f"{unique_table.name}_{i+1}"
 
         return table_aliases
 
