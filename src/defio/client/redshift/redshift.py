@@ -29,8 +29,6 @@ GZIP
 ;
 """
 
-_REDSHIFT_VACUUM_ANALYZE: Final = "VACUUM {table_name}; ANALYZE {table_name};"
-
 
 @final
 @define(frozen=True)
@@ -82,12 +80,6 @@ class RedshiftClient(PostgresClient):
                         )
                     )
 
-                    # Optionally update the table statistics
-                    if update_statistics:
-                        await aconn.execute_one(
-                            _REDSHIFT_VACUUM_ANALYZE.format(table_name=table.name)
-                        )
-
         with log_time(
             verbose,
             start=f"Loading dataset `{dataset.name}` from S3\n---",
@@ -100,6 +92,13 @@ class RedshiftClient(PostgresClient):
             async with asyncio.TaskGroup() as tg:
                 for table in get_tables_to_load(dataset, tables_to_load):
                     tg.create_task(load(table))
+
+            # Optionally update the table statistics
+            # TODO: psycopg.errors.ActiveSqlTransaction: VACUUM cannot run inside a multiple commands statement
+            if update_statistics:
+                async with await self.connect() as aconn:
+                    await aconn.execute_one("VACUUM;")
+                    await aconn.execute_one("ANALYZE;")
 
 
 @final
